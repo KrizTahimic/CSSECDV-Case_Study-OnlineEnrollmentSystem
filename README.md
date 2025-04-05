@@ -40,7 +40,7 @@ The system is divided into the following microservices:
    npm install
    ```
 
-2. Start the services:
+2. Start the services from the project directory simultaneously:
    ```bash
    npm start
    ```
