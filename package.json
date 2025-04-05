@@ -1,0 +1,21 @@
+{
+  "name": "distributed-enrollment-system",
+  "version": "1.0.0",
+  "description": "A distributed enrollment system with microservices architecture",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "frontend"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm run start:auth\" \"npm run start:courses\" \"npm run start:enrollment\" \"npm run start:grades\" \"npm run start:frontend\"",
+    "start:auth": "cd services/auth-service && npm start",
+    "start:courses": "cd services/course-service && npm start",
+    "start:enrollment": "cd services/enrollment-service && npm start",
+    "start:grades": "cd services/grade-service && npm start",
+    "start:frontend": "cd frontend && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
