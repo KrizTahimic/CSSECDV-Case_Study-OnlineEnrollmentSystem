@@ -1,4 +1,4 @@
-# Distributed Enrollment System
+# Distributed Enrollment System (Locally Hosted)
 
 (AI Assisted Readme XD)
 
@@ -34,6 +34,8 @@ The system is divided into the following microservices:
    - API integration
 
 ## Setup Instructions
+
+* Make sure MongoDB is installed and running on default port.
 
 1. Install dependencies:
    ```bash
