@@ -1,3 +1,5 @@
+const bcrypt = require('bcryptjs');
+const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 const { validationResult } = require('express-validator');
@@ -54,47 +56,68 @@ exports.register = async (req, res) => {
   }
 };
 
+// Correct login controller method
 exports.login = async (req, res) => {
   try {
+    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
+    
     const { email, password } = req.body;
-
-    // Find user
-    const user = await User.findOne({ email });
+    console.log('Login attempt with email:', email);
+    
+    // Find user using Mongoose model
+    const user = await User.findOne({ email: email.toLowerCase() });
+    console.log('User found in database:', user ? 'Yes' : 'No');
+    
     if (!user) {
+      console.log('Authentication failed: User not found');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    
+    // Debug log - user details
+    console.log('User details:', { 
+      id: user._id, 
+      email: user.email,
+      role: user.role
+    });
+    
+    // Verify password using the model method
+    console.log('Comparing passwords...');
+    const isPasswordValid = await user.comparePassword(password);
+    console.log('Password valid:', isPasswordValid ? 'Yes' : 'No');
+    
+    if (!isPasswordValid) {
+      console.log('Authentication failed: Invalid password');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
-    // Generate JWT token
+    
+    // Generate token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
-
-    res.json({
+    
+    console.log('Authentication successful for user:', user.email);
+    
+    // Return success response
+    res.status(200).json({ 
+      message: 'Login successful',
       token,
       user: {
         id: user._id,
         email: user.email,
-        role: user.role,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        role: user.role
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Login failed' });
   }
 };
 

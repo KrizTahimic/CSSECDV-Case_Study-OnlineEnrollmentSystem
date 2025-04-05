@@ -20,7 +20,7 @@ app.get('/health', (req, res) => {
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth-service')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_service')
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, () => {
