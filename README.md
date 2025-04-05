@@ -40,11 +40,7 @@ The system is divided into the following microservices:
    npm install
    ```
 
-2. Set up environment variables:
-   - Copy `.env.example` to `.env` in each service directory
-   - Update the variables as needed
-
-3. Start the services:
+2. Start the services:
    ```bash
    npm start
    ```
