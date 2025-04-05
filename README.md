@@ -1,5 +1,7 @@
 # Distributed Enrollment System
 
+(AI Assisted Readme XD)
+
 A fault-tolerant distributed enrollment system built with Express.js and microservices architecture.
 
 ## Architecture
