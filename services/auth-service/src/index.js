@@ -22,15 +22,39 @@ app.get('/health', (req, res) => {
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_service')
   .then(() => {
+    console.log('=== MongoDB Connection Details ===');
     console.log('Connected to MongoDB');
+    console.log('Database name:', mongoose.connection.db.databaseName);
+    console.log('Connection host:', mongoose.connection.host);
+    console.log('Connection port:', mongoose.connection.port);
+    console.log('Connection string used:', process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_service');
+    console.log('=================================');
+    
+    // Check for users collection and content
+    mongoose.connection.db.listCollections({ name: 'users' })
+      .next((err, collinfo) => {
+        if (collinfo) {
+          console.log('Users collection exists in the connected database');
+          mongoose.connection.db.collection('users').countDocuments()
+            .then(count => {
+              console.log(`Found ${count} users in the collection`);
+              if (count > 0) {
+                mongoose.connection.db.collection('users').find({}).toArray()
+                  .then(users => {
+                    console.log('User emails in database:');
+                    users.forEach(u => console.log(`- ${u.email}`));
+                  });
+              }
+            });
+        } else {
+          console.log('WARNING: Users collection does not exist in the connected database!');
+        }
+      });
+
     app.listen(PORT, () => {
       console.log(`Auth service running on port ${PORT}`);
     });
   })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  });
 
 // Error handling middleware
 app.use((err, req, res, next) => {

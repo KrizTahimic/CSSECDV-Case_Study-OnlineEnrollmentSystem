@@ -74,7 +74,7 @@ exports.login = async (req, res) => {
     
     if (!user) {
       console.log('Authentication failed: User not found');
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials User' });
     }
     
     // Debug log - user details
@@ -91,7 +91,7 @@ exports.login = async (req, res) => {
     
     if (!isPasswordValid) {
       console.log('Authentication failed: Invalid password');
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials Password' });
     }
     
     // Generate token

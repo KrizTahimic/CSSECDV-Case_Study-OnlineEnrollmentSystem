@@ -19,6 +19,7 @@ async function checkUsers() {
       console.log(`  First Name: ${user.firstName}`);
       console.log(`  Last Name: ${user.lastName}`);
       console.log(`  ID: ${user._id}`);
+      console.log(`  Password: ${user.password}`);
       console.log('---');
     });
     
