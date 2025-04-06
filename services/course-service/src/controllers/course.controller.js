@@ -11,11 +11,12 @@ exports.createCourse = async (req, res) => {
 
     const course = new Course({
       code: req.body.code,
-      name: req.body.name,
+      title: req.body.title,
       description: req.body.description,
       credits: req.body.credits,
       instructor: req.body.instructor,
       capacity: req.body.capacity,
+      semester: req.body.semester,
       schedule: req.body.schedule
     });
 

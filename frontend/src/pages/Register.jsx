@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, TextField, Button, Paper, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     role: 'student',
   });
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -69,12 +77,23 @@ const Register = () => {
               margin="normal"
               required
               fullWidth
-              id="name"
-              label="Full Name"
-              name="name"
-              autoComplete="name"
+              id="firstName"
+              label="First Name"
+              name="firstName"
+              autoComplete="given-name"
               autoFocus
-              value={formData.name}
+              value={formData.firstName}
+              onChange={handleChange}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="lastName"
+              label="Last Name"
+              name="lastName"
+              autoComplete="family-name"
+              value={formData.lastName}
               onChange={handleChange}
             />
             <TextField

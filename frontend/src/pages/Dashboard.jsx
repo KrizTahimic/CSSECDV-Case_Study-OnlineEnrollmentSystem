@@ -32,7 +32,7 @@ const Dashboard = () => {
           Dashboard
         </Typography>
         <Typography variant="h6" gutterBottom>
-          Welcome, {user.name}!
+          Welcome, {user.firstName} {user.lastName}!
         </Typography>
         <Button variant="outlined" color="primary" onClick={handleLogout} sx={{ mb: 3 }}>
           Logout

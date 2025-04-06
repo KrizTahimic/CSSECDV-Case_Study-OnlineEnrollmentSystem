@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, TextField, Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,13 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,6 +33,8 @@ const Login = () => {
       if (response.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Dispatch event to notify Navbar of auth state change
+        window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');
       } else {
         setError(data.message || 'Login failed');

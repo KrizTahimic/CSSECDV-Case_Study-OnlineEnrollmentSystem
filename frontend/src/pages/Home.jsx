@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Container, Typography, Box, Button } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 const Home = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
   return (
     <Container maxWidth="md">
       <Box
@@ -14,7 +23,7 @@ const Home = () => {
         }}
       >
         <Typography variant="h2" component="h1" gutterBottom>
-          Welcome to the Online Enrollment System
+          Welcome to AnimoSheesh!
         </Typography>
         <Typography variant="h5" component="h2" gutterBottom color="text.secondary">
           A distributed system for managing course enrollments and grades

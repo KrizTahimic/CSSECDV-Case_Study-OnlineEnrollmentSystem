@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Grid, Card, CardContent, CardActions, Button, CircularProgress } from '@mui/material';
+import { Container, Typography, Box, Grid, Card, CardContent, CardActions, Button, CircularProgress, Fab, Tooltip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import AddIcon from '@mui/icons-material/Add';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const token = localStorage.getItem('token');
+        const userData = JSON.parse(localStorage.getItem('user'));
+        
         if (!token) {
           navigate('/login');
           return;
         }
+        
+        setUser(userData);
 
         const response = await fetch('http://localhost:3002/api/courses', {
           headers: {
@@ -73,6 +79,10 @@ const Courses = () => {
     }
   };
 
+  const handleAddCourse = () => {
+    navigate('/add-course');
+  };
+
   if (loading) {
     return (
       <Container>
@@ -113,18 +123,41 @@ const Courses = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button 
-                    size="small" 
-                    color="primary"
-                    onClick={() => handleEnroll(course._id)}
-                  >
-                    Enroll
-                  </Button>
+                  {user && user.role === 'student' && (
+                    <Button 
+                      size="small" 
+                      color="primary"
+                      onClick={() => handleEnroll(course._id)}
+                    >
+                      Enroll
+                    </Button>
+                  )}
                 </CardActions>
               </Card>
             </Grid>
           ))}
         </Grid>
+        
+        {user && (user.role === 'admin' || user.role === 'faculty') && (
+          <Box sx={{ position: 'fixed', bottom: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={handleAddCourse}
+              sx={{ 
+                py: 1.5, 
+                px: 3, 
+                borderRadius: 2,
+                fontSize: '1rem',
+                boxShadow: 3
+              }}
+            >
+              Add Courses as Faculty / Admin
+            </Button>
+          </Box>
+        )}
       </Box>
     </Container>
   );
