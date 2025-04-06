@@ -4,6 +4,7 @@ const { validationResult } = require('express-validator');
 
 const ENROLLMENT_SERVICE_URL = process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:3003';
 
+// Submit a grade
 exports.submitGrade = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -11,74 +12,42 @@ exports.submitGrade = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { studentId, courseId, semester, grade, score, comments } = req.body;
-    const facultyId = req.user.userId;
-
-    // Check if student is enrolled in the course
-    const enrollmentResponse = await axios.get(`${ENROLLMENT_SERVICE_URL}/api/enrollment`, {
-      params: {
-        student: studentId,
-        course: courseId,
-        semester,
-        status: 'approved'
-      }
+    const grade = new Grade({
+      student: req.body.studentId,
+      course: req.body.courseId,
+      value: req.body.value,
+      submittedBy: req.user.id
     });
 
-    if (!enrollmentResponse.data.length) {
-      return res.status(400).json({ message: 'Student is not enrolled in this course' });
-    }
-
-    // Create or update grade
-    const gradeData = {
-      student: studentId,
-      course: courseId,
-      semester,
-      grade,
-      score,
-      comments,
-      submittedBy: facultyId
-    };
-
-    const existingGrade = await Grade.findOne({
-      student: studentId,
-      course: courseId,
-      semester
-    });
-
-    if (existingGrade) {
-      Object.assign(existingGrade, gradeData);
-      await existingGrade.save();
-      return res.json(existingGrade);
-    }
-
-    const newGrade = new Grade(gradeData);
-    await newGrade.save();
-    res.status(201).json(newGrade);
+    await grade.save();
+    res.status(201).json(grade);
   } catch (error) {
-    console.error('Grade submission error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
+// Get grades
 exports.getGrades = async (req, res) => {
   try {
-    const { student, course, semester } = req.query;
     const query = {};
-
-    if (student) query.student = student;
-    if (course) query.course = course;
-    if (semester) query.semester = semester;
+    
+    // Students can only see their own grades
+    if (req.user.role === 'student') {
+      query.student = req.user.id;
+    }
+    // Faculty can see grades for their courses
+    else if (req.user.role === 'faculty') {
+      query.course = { $in: req.user.courses };
+    }
 
     const grades = await Grade.find(query)
-      .populate('student', 'firstName lastName email')
-      .populate('course', 'code title')
-      .populate('submittedBy', 'firstName lastName')
-      .sort({ submittedAt: -1 });
-
+      .populate('student', '-password')
+      .populate('course')
+      .populate('submittedBy', '-password');
+    
     res.json(grades);
   } catch (error) {
-    console.error('Grade fetch error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -102,6 +71,7 @@ exports.getStudentGrades = async (req, res) => {
   }
 };
 
+// Update a grade
 exports.updateGrade = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -109,28 +79,36 @@ exports.updateGrade = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { grade, score, comments } = req.body;
-    const gradeId = req.params.id;
+    const grade = await Grade.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $set: { 
+          value: req.body.value,
+          submittedBy: req.user.id
+        }
+      },
+      { new: true, runValidators: true }
+    );
 
-    const existingGrade = await Grade.findById(gradeId);
-
-    if (!existingGrade) {
+    if (!grade) {
       return res.status(404).json({ message: 'Grade not found' });
     }
-
-    // Only allow faculty who submitted the grade or admin to update it
-    if (existingGrade.submittedBy.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this grade' });
-    }
-
-    existingGrade.grade = grade;
-    existingGrade.score = score;
-    existingGrade.comments = comments;
-    await existingGrade.save();
-
-    res.json(existingGrade);
+    
+    res.json(grade);
   } catch (error) {
-    console.error('Grade update error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a grade
+exports.deleteGrade = async (req, res) => {
+  try {
+    const result = await Grade.deleteOne({ _id: req.params.id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'Grade not found' });
+    }
+    res.json({ message: 'Grade deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 }; 

@@ -1,6 +1,7 @@
 const Course = require('../models/course.model');
 const { validationResult } = require('express-validator');
 
+// Create a new course
 exports.createCourse = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -9,54 +10,48 @@ exports.createCourse = async (req, res) => {
     }
 
     const course = new Course({
-      ...req.body,
-      instructor: req.user.userId
+      code: req.body.code,
+      name: req.body.name,
+      description: req.body.description,
+      credits: req.body.credits,
+      instructor: req.body.instructor,
+      capacity: req.body.capacity,
+      schedule: req.body.schedule
     });
 
     await course.save();
     res.status(201).json(course);
   } catch (error) {
-    console.error('Course creation error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
+// Get all courses
 exports.getCourses = async (req, res) => {
   try {
-    const { semester, status, instructor } = req.query;
-    const query = {};
-
-    if (semester) query.semester = semester;
-    if (status) query.status = status;
-    if (instructor) query.instructor = instructor;
-
-    const courses = await Course.find(query)
-      .populate('instructor', 'firstName lastName email')
-      .sort({ createdAt: -1 });
-
+    const courses = await Course.find()
+      .populate('instructor', '-password');
     res.json(courses);
   } catch (error) {
-    console.error('Course fetch error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-exports.getCourseById = async (req, res) => {
+// Get a single course
+exports.getCourse = async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
-      .populate('instructor', 'firstName lastName email');
-
+      .populate('instructor', '-password');
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-
     res.json(course);
   } catch (error) {
-    console.error('Course fetch error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
+// Update a course
 exports.updateCourse = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -64,68 +59,51 @@ exports.updateCourse = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const course = await Course.findById(req.params.id);
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
 
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-
-    // Only instructor or admin can update the course
-    if (course.instructor.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this course' });
-    }
-
-    Object.assign(course, req.body);
-    await course.save();
-
+    
     res.json(course);
   } catch (error) {
-    console.error('Course update error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
+// Delete a course
 exports.deleteCourse = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
+    const result = await Course.deleteOne({ _id: req.params.id });
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Course not found' });
     }
-
-    // Only instructor or admin can delete the course
-    if (course.instructor.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to delete this course' });
-    }
-
-    await course.remove();
-    res.json({ message: 'Course deleted successfully' });
+    res.json({ message: 'Course deleted' });
   } catch (error) {
-    console.error('Course deletion error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
+// Update course status
 exports.updateCourseStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const course = await Course.findById(req.params.id);
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status } },
+      { new: true, runValidators: true }
+    );
 
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    // Only instructor or admin can update the course status
-    if (course.instructor.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this course' });
-    }
-
-    course.status = status;
-    await course.save();
-
     res.json(course);
   } catch (error) {
-    console.error('Course status update error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 }; 

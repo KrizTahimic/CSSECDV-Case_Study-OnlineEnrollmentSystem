@@ -21,6 +21,24 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+const authorizeRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(403).send({
+        message: 'No user found!'
+      });
+    }
+
+    if (roles.includes(req.user.role) || req.user.role === 'admin') {
+      next();
+    } else {
+      res.status(403).send({
+        message: `Require ${roles.join(' or ')} Role!`
+      });
+    }
+  };
+};
+
 const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
@@ -53,6 +71,7 @@ const isStudent = (req, res, next) => {
 
 module.exports = {
   verifyToken,
+  authorizeRole,
   isAdmin,
   isFaculty,
   isStudent

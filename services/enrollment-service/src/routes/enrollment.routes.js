@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const enrollmentController = require('../controllers/enrollment.controller');
-const { authenticateToken, authorizeRole } = require('../middleware/auth.middleware');
+const { verifyToken, authorizeRole } = require('../middleware/auth.middleware');
 const router = express.Router();
 
 // Validation middleware
@@ -12,26 +12,26 @@ const enrollmentValidation = [
 
 // Protected routes
 router.post('/',
-  authenticateToken,
+  verifyToken,
   authorizeRole('student'),
   enrollmentValidation,
   enrollmentController.enroll
 );
 
 router.get('/',
-  authenticateToken,
+  verifyToken,
   enrollmentController.getEnrollments
 );
 
 router.patch('/:id/status',
-  authenticateToken,
+  verifyToken,
   authorizeRole('faculty', 'admin'),
   body('status').isIn(['pending', 'approved', 'rejected', 'dropped']),
   enrollmentController.updateEnrollmentStatus
 );
 
 router.post('/:id/drop',
-  authenticateToken,
+  verifyToken,
   enrollmentController.dropEnrollment
 );
 

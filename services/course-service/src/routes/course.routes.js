@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const courseController = require('../controllers/course.controller');
-const { authenticateToken, authorizeRole } = require('../middleware/auth.middleware');
+const { verifyToken, authorizeRole } = require('../middleware/auth.middleware');
 const router = express.Router();
 
 // Validation middleware
@@ -20,31 +20,31 @@ const courseValidation = [
 
 // Public routes
 router.get('/', courseController.getCourses);
-router.get('/:id', courseController.getCourseById);
+router.get('/:id', courseController.getCourse);
 
 // Protected routes
 router.post('/',
-  authenticateToken,
+  verifyToken,
   authorizeRole('faculty', 'admin'),
   courseValidation,
   courseController.createCourse
 );
 
 router.put('/:id',
-  authenticateToken,
+  verifyToken,
   authorizeRole('faculty', 'admin'),
   courseValidation,
   courseController.updateCourse
 );
 
 router.delete('/:id',
-  authenticateToken,
+  verifyToken,
   authorizeRole('faculty', 'admin'),
   courseController.deleteCourse
 );
 
 router.patch('/:id/status',
-  authenticateToken,
+  verifyToken,
   authorizeRole('faculty', 'admin'),
   body('status').isIn(['open', 'closed', 'cancelled']),
   courseController.updateCourseStatus
