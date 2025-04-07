@@ -139,7 +139,11 @@ Each node exposes its own REST API:
    npm install
    ```
 
-2. Start the nodes from the project directory simultaneously:
+2. ```bash
+   npm run seed:all
+   ```
+
+3. Start the nodes from the project directory simultaneously:
    ```bash
    npm start
    ```
@@ -153,7 +157,7 @@ Each node exposes its own REST API:
    npm run start:frontend
    ```
 
-3. Access the application at `http://localhost:3000`
+4. Access the application at `http://localhost:3000`
 
 ## Fault Tolerance
 
