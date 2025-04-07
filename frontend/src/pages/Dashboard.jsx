@@ -9,7 +9,16 @@ const Dashboard = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      // Add detailed debugging
+      console.log('Dashboard - User data:', {
+        role: parsedUser.role,
+        roleType: typeof parsedUser.role,
+        isStudent: parsedUser.role === 'student',
+        isFaculty: parsedUser.role === 'faculty',
+        fullUser: parsedUser
+      });
+      setUser(parsedUser);
     } else {
       navigate('/login');
     }
@@ -24,6 +33,16 @@ const Dashboard = () => {
   if (!user) {
     return null;
   }
+
+  // Function to determine if enrollment should be shown
+  const shouldShowEnrollment = () => {
+    const shouldShow = user.role === 'student';
+    console.log('Should show enrollment?', {
+      currentRole: user.role,
+      shouldShow: shouldShow
+    });
+    return shouldShow;
+  };
 
   return (
     <Container maxWidth="lg">
@@ -64,31 +83,36 @@ const Dashboard = () => {
               </Button>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Paper
-              sx={{
-                p: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 240,
-              }}
-            >
-              <Typography variant="h6" gutterBottom>
-                Enrollments
-              </Typography>
-              <Typography variant="body1" paragraph>
-                View and manage your course enrollments.
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => navigate('/enrollments')}
-                sx={{ mt: 'auto' }}
+          
+          {/* Only show enrollment container for students */}
+          {user.role === 'student' && (
+            <Grid item xs={12} md={4}>
+              <Paper
+                sx={{
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: 240,
+                }}
               >
-                Go to Enrollments
-              </Button>
-            </Paper>
-          </Grid>
+                <Typography variant="h6" gutterBottom>
+                  Enrollments
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  View and manage your course enrollments.
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => navigate('/enrollments')}
+                  sx={{ mt: 'auto' }}
+                >
+                  Go to Enrollments
+                </Button>
+              </Paper>
+            </Grid>
+          )}
+
           <Grid item xs={12} md={4}>
             <Paper
               sx={{
@@ -120,4 +144,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
