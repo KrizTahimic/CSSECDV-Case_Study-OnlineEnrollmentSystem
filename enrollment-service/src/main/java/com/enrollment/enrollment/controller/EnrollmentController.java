@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Key;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/enrollments")
@@ -50,7 +51,7 @@ public class EnrollmentController {
     }
     
     @PostMapping
-    public ResponseEntity<Enrollment> enrollStudentFromRequest(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> enrollStudentFromRequest(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String, Object> request) {
         try {
             // Extract courseId from request body
             String courseId = request.get("courseId").toString();
@@ -61,8 +62,13 @@ public class EnrollmentController {
             
             return ResponseEntity.ok(enrollmentService.enrollStudent(studentId, courseId));
         } catch (Exception e) {
-            e.printStackTrace(); // Add this for debugging
-            return ResponseEntity.badRequest().build();
+            e.printStackTrace(); // Log full stack trace for debugging
+            System.err.println("Error in enrollStudentFromRequest: " + e.getMessage());
+            
+            // Return a more descriptive error response
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 
@@ -99,7 +105,7 @@ public class EnrollmentController {
     }
 
     @DeleteMapping("/student/{studentId}/course/{courseId}")
-    public ResponseEntity<Void> unenrollStudent(
+    public ResponseEntity<?> unenrollStudent(
             @PathVariable String studentId,
             @PathVariable String courseId) {
         try {
@@ -108,7 +114,11 @@ public class EnrollmentController {
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             System.err.println("Error in unenrollStudent controller: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
+            
+            // Return a more descriptive error response
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 } 

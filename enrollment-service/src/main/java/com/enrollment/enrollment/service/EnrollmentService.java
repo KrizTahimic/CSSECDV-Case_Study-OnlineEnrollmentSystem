@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -46,17 +47,45 @@ public class EnrollmentService {
     @CircuitBreaker(name = "basic")
     @Transactional
     public Enrollment enrollStudent(String studentId, String courseId) {
+        System.out.println("Attempting to enroll student: " + studentId + " in course: " + courseId);
+        
         // Check if student is already enrolled
-        if (enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId).isPresent()) {
-            throw new RuntimeException("Student is already enrolled in this course");
+        Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
+        
+        if (existingEnrollmentOpt.isPresent()) {
+            Enrollment existingEnrollment = existingEnrollmentOpt.get();
+            System.out.println("Found existing enrollment with status: " + existingEnrollment.getStatus());
+            
+            // If enrollment exists but is dropped, reactivate it
+            if ("dropped".equals(existingEnrollment.getStatus())) {
+                System.out.println("Reactivating previously dropped enrollment");
+                existingEnrollment.setStatus("enrolled");
+                existingEnrollment.setEnrollmentDate(new Date());
+                
+                // Increment course enrollment
+                courseClient.incrementEnrollment(courseId);
+                System.out.println("Incremented course enrollment count");
+                
+                Enrollment savedEnrollment = enrollmentRepository.save(existingEnrollment);
+                System.out.println("Enrollment reactivated successfully: " + savedEnrollment.getId());
+                return savedEnrollment;
+            } else {
+                // If enrollment exists and is not dropped, throw an error
+                System.out.println("Cannot enroll: Student is already enrolled in this course");
+                throw new RuntimeException("Student is already enrolled in this course");
+            }
         }
 
+        System.out.println("No existing enrollment found, creating new enrollment");
+        
         // Get course details and check if it's open
         Course course = courseClient.getCourse(courseId);
         if (course == null) {
+            System.out.println("Course not found: " + courseId);
             throw new RuntimeException("Course not found");
         }
         if (!"open".equals(course.getStatus())) {
+            System.out.println("Course is not open for enrollment: " + course.getStatus());
             throw new RuntimeException("Course is not open for enrollment");
         }
 
@@ -67,8 +96,11 @@ public class EnrollmentService {
 
         // Increment course enrollment
         courseClient.incrementEnrollment(courseId);
+        System.out.println("Incremented course enrollment count");
 
-        return enrollmentRepository.save(enrollment);
+        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+        System.out.println("New enrollment created successfully: " + savedEnrollment.getId());
+        return savedEnrollment;
     }
 
     @Transactional
