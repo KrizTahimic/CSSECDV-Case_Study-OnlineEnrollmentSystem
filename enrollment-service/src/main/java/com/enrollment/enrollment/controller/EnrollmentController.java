@@ -103,9 +103,11 @@ public class EnrollmentController {
             @PathVariable String studentId,
             @PathVariable String courseId) {
         try {
+            System.out.println("Received drop request for student: " + studentId + " and course: " + courseId);
             enrollmentService.unenrollStudent(studentId, courseId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
+            System.err.println("Error in unenrollStudent controller: " + e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }

@@ -7,6 +7,7 @@ import com.enrollment.course.repository.CourseRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -97,17 +98,18 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
-    @CircuitBreaker(name = "basic")
+    @Transactional
     public Course decrementEnrollment(String id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
         
         if (course.getEnrolled() > 0) {
             course.setEnrolled(course.getEnrolled() - 1);
-            course.setStatus("open");
+            if (course.getEnrolled() < course.getCapacity()) {
+                course.setStatus("open");
+            }
             return courseRepository.save(course);
         }
-        
         return course;
     }
 } 

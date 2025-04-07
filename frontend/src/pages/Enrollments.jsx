@@ -137,7 +137,23 @@ const Enrollments = () => {
   const handleDrop = async (courseId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${user.id}/course/${courseId}`, {
+      // Get user ID from the token instead of local storage
+      const tokenParts = token.split('.');
+      const payload = JSON.parse(atob(tokenParts[1]));
+      console.log('Token payload:', payload);
+      
+      const userId = payload.id;
+      console.log('Using user ID from token:', userId);
+      
+      // Log courseId to verify it's correct
+      console.log('Dropping course with ID:', courseId);
+      
+      if (!userId) {
+        setError('User ID not found in token. Please log in again.');
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${userId}/course/${courseId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -146,12 +162,16 @@ const Enrollments = () => {
 
       if (response.ok) {
         setSuccess('Successfully dropped the course');
+        // Refresh enrollments to update the list
         fetchEnrollments();
+        // Refresh courses to update availability
+        fetchCourses();
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         setError(errorData.message || 'Failed to drop the course');
       }
     } catch (err) {
+      console.error('Drop error:', err);
       setError('Network error. Please try again.');
     }
   };
@@ -234,7 +254,11 @@ const Enrollments = () => {
                           variant="outlined"
                           color="error"
                           size="small"
-                          onClick={() => handleDrop(enrollment.courseId)}
+                          onClick={() => {
+                            console.log("Dropping enrollment:", enrollment);
+                            const courseId = enrollment.courseId || enrollment.course?._id;
+                            handleDrop(courseId);
+                          }}
                         >
                           DROP
                         </Button>

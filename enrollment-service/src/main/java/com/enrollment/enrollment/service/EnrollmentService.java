@@ -71,20 +71,53 @@ public class EnrollmentService {
         return enrollmentRepository.save(enrollment);
     }
 
-    @CircuitBreaker(name = "basic")
     @Transactional
+    @CircuitBreaker(name = "basic")
     public void unenrollStudent(String studentId, String courseId) {
-        Enrollment enrollment = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+        try {
+            System.out.println("Attempting to unenroll student: " + studentId + " from course: " + courseId);
+            
+            // Find the enrollment
+            Optional<Enrollment> enrollmentOpt = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
+            
+            // If not found by ID, try finding by email
+            if (enrollmentOpt.isEmpty()) {
+                System.out.println("Enrollment not found by ID, trying to find by email");
+                // Try to find by email if studentId looks like an email
+                if (studentId.contains("@")) {
+                    enrollmentOpt = enrollmentRepository.findByStudentEmailAndCourseId(studentId, courseId);
+                }
+            }
+            
+            if (enrollmentOpt.isEmpty()) {
+                System.out.println("Enrollment still not found after trying email");
+                throw new RuntimeException("Enrollment not found for student " + studentId + " and course " + courseId);
+            }
 
-        if ("dropped".equals(enrollment.getStatus())) {
-            throw new RuntimeException("Student is not enrolled in this course");
+            Enrollment enrollment = enrollmentOpt.get();
+            System.out.println("Found enrollment: " + enrollment.getId() + " with status: " + enrollment.getStatus());
+            
+            // Check if already dropped
+            if ("dropped".equals(enrollment.getStatus())) {
+                throw new RuntimeException("Course is already dropped");
+            }
+            
+            // Update enrollment status to dropped
+            enrollment.setStatus("dropped");
+            enrollmentRepository.save(enrollment);
+            System.out.println("Updated enrollment status to dropped");
+
+            // Decrement the course enrollment count
+            try {
+                courseClient.decrementEnrollment(courseId);
+                System.out.println("Decremented course enrollment count");
+            } catch (Exception e) {
+                System.err.println("Error updating course enrollment count: " + e.getMessage());
+                // Don't throw here as the enrollment is already updated
+            }
+        } catch (Exception e) {
+            System.err.println("Error in unenrollStudent: " + e.getMessage());
+            throw new RuntimeException("Failed to drop course: " + e.getMessage());
         }
-
-        enrollment.setStatus("dropped");
-        enrollmentRepository.save(enrollment);
-
-        // Decrement course enrollment
-        courseClient.decrementEnrollment(courseId);
     }
 } 
