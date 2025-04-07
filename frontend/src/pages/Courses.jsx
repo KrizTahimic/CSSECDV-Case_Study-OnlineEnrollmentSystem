@@ -42,8 +42,39 @@ const Courses = () => {
     instructorId: ''
   });
   const [instructors, setInstructors] = useState([]);
+  const [userEnrollments, setUserEnrollments] = useState([]);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const isEnrolled = (courseId) => {
+    return userEnrollments.some(enrollment => 
+      (enrollment.courseId === courseId || enrollment.course?._id === courseId || enrollment.course?.id === courseId) && 
+      enrollment.status === 'enrolled'
+    );
+  };
+
+  const fetchUserEnrollments = async () => {
+    if (user.role !== 'student') return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('User enrollments:', data);
+        setUserEnrollments(data);
+      }
+    } catch (err) {
+      console.error('Error fetching user enrollments:', err);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -94,6 +125,9 @@ const Courses = () => {
   useEffect(() => {
     fetchCourses();
     fetchInstructors();
+    if (user.role === 'student') {
+      fetchUserEnrollments();
+    }
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -208,6 +242,7 @@ const Courses = () => {
       if (response.ok) {
         setSuccess('Successfully enrolled in course');
         fetchCourses();
+        fetchUserEnrollments();
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Failed to enroll in course');
@@ -295,17 +330,17 @@ const Courses = () => {
                       color="primary"
                       fullWidth
                       sx={{ 
-                        bgcolor: '#2e7d32', 
-                        '&:hover': { bgcolor: '#1b5e20' },
+                        bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#2e7d32', 
+                        '&:hover': { bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#1b5e20' },
                         borderRadius: 0,
                         py: 0.75,
                         textTransform: 'uppercase',
                         fontWeight: 'bold'
                       }}
                       onClick={() => handleEnroll(course.id || course._id)}
-                      disabled={course.status === 'closed' || (course.capacity <= course.enrolled)}
+                      disabled={course.status === 'closed' || (course.capacity <= course.enrolled) || isEnrolled(course.id || course._id)}
                     >
-                      ENROLL
+                      {isEnrolled(course.id || course._id) ? 'ENROLLED' : 'ENROLL'}
                     </Button>
                   )}
                   {user.role === 'admin' && (
