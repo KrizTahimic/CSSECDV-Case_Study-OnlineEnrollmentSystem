@@ -8,7 +8,7 @@ const Register = () => {
     lastName: '',
     email: '',
     password: '',
-    role: 'student',
+    role: 'student', // Default to student
   });
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -22,10 +22,10 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -33,7 +33,8 @@ const Register = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      // Register the user
+      const registerResponse = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,12 +42,35 @@ const Register = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      const registerData = await registerResponse.json();
 
-      if (response.ok) {
-        navigate('/login');
+      if (registerResponse.ok) {
+        // Automatically log in the user
+        const loginResponse = await fetch('http://localhost:3001/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        });
+
+        const loginData = await loginResponse.json();
+
+        if (loginResponse.ok) {
+          localStorage.setItem('token', loginData.token);
+          localStorage.setItem('user', JSON.stringify(loginData.user));
+          // Dispatch the authStateChanged event
+          window.dispatchEvent(new Event('authStateChanged'));
+          navigate('/dashboard');
+        } else {
+          // If login fails, redirect to login page
+          navigate('/login');
+        }
       } else {
-        setError(data.message || 'Registration failed');
+        setError(registerData.message || 'Registration failed');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -131,7 +155,6 @@ const Register = () => {
             >
               <MenuItem value="student">Student</MenuItem>
               <MenuItem value="faculty">Faculty</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
             </TextField>
             <Button
               type="submit"

@@ -33,7 +33,6 @@ const Login = () => {
       if (response.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        // Dispatch event to notify Navbar of auth state change
         window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');
       } else {

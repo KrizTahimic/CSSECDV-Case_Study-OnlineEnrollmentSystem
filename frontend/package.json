@@ -4,7 +4,7 @@
   "description": "Frontend for the distributed enrollment system",
   "main": "src/index.jsx",
   "scripts": {
-    "start": "vite",
+    "start": "npx vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest"

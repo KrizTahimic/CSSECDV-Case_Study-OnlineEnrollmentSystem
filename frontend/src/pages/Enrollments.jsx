@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
+// Helper function to capitalize first letter
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+};
+
 const Enrollments = () => {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,14 +17,12 @@ const Enrollments = () => {
     const fetchEnrollments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user'));
-        
         if (!token) {
           navigate('/login');
           return;
         }
 
-        const response = await fetch('http://localhost:3003/api/enrollments', {
+        const response = await fetch('http://localhost:3003/api/enrollment', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -27,16 +30,13 @@ const Enrollments = () => {
 
         if (response.ok) {
           const data = await response.json();
-          // Filter enrollments based on user role
-          if (user.role === 'student') {
-            setEnrollments(data.filter(enrollment => enrollment.studentId === user.id));
-          } else {
-            setEnrollments(data);
-          }
+          setEnrollments(data);
         } else {
-          setError('Failed to fetch enrollments');
+          const errorData = await response.json();
+          setError(errorData.message || 'Failed to fetch enrollments');
         }
       } catch (err) {
+        console.error('Error fetching enrollments:', err);
         setError('Network error. Please try again.');
       } finally {
         setLoading(false);
@@ -50,21 +50,55 @@ const Enrollments = () => {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:3003/api/enrollments/${enrollmentId}`, {
-        method: 'DELETE',
+      const response = await fetch(`http://localhost:3003/api/enrollment/${enrollmentId}/drop`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.ok) {
-        // Remove the dropped enrollment from the list
-        setEnrollments(enrollments.filter(enrollment => enrollment._id !== enrollmentId));
+        // Refresh enrollments after dropping
+        const updatedEnrollment = await response.json();
+        setEnrollments(enrollments.map(e => 
+          e._id === updatedEnrollment._id ? updatedEnrollment : e
+        ));
       } else {
         const data = await response.json();
         setError(data.message || 'Failed to drop enrollment');
       }
     } catch (err) {
+      console.error('Error dropping enrollment:', err);
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const handleReEnroll = async (enrollment) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:3003/api/enrollment', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          course: enrollment.course._id
+        })
+      });
+
+      if (response.ok) {
+        const updatedEnrollment = await response.json();
+        setEnrollments(enrollments.map(e => 
+          e._id === updatedEnrollment._id ? updatedEnrollment : e
+        ));
+      } else {
+        const data = await response.json();
+        setError(data.message || 'Failed to re-enroll in course');
+      }
+    } catch (err) {
+      console.error('Error re-enrolling:', err);
       setError('Network error. Please try again.');
     }
   };
@@ -111,19 +145,34 @@ const Enrollments = () => {
               ) : (
                 enrollments.map((enrollment) => (
                   <TableRow key={enrollment._id}>
-                    <TableCell>{enrollment.courseId}</TableCell>
-                    <TableCell>{enrollment.studentId}</TableCell>
-                    <TableCell>{new Date(enrollment.enrollmentDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{enrollment.status}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={() => handleDrop(enrollment._id)}
-                      >
-                        Drop
-                      </Button>
+                      {enrollment.course ? `${enrollment.course.code} - ${enrollment.course.title}` : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.student ? `${enrollment.student.firstName} ${enrollment.student.lastName}` : 'N/A'}
+                    </TableCell>
+                    <TableCell>{new Date(enrollment.enrollmentDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{capitalizeFirstLetter(enrollment.status)}</TableCell>
+                    <TableCell>
+                      {enrollment.status === 'enrolled' ? (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => handleDrop(enrollment._id)}
+                        >
+                          Drop
+                        </Button>
+                      ) : enrollment.status === 'dropped' && (
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          onClick={() => handleReEnroll(enrollment)}
+                        >
+                          Re-enroll
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

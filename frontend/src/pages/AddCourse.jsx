@@ -23,7 +23,6 @@ const AddCourse = () => {
     description: '',
     credits: 3,
     capacity: 30,
-    semester: 'Fall 2023',
     schedule: {
       days: [],
       startTime: '09:00',
@@ -119,11 +118,6 @@ const AddCourse = () => {
       setLoading(false);
       return;
     }
-    if (!formData.semester.trim()) {
-      setError('Semester is required');
-      setLoading(false);
-      return;
-    }
     if (!formData.schedule.days.length) {
       setError('At least one day must be selected for the schedule');
       setLoading(false);
@@ -151,10 +145,8 @@ const AddCourse = () => {
         })
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        setSuccess('Course added successfully!');
+        setSuccess('Course created successfully');
         // Reset form
         setFormData({
           code: '',
@@ -162,7 +154,6 @@ const AddCourse = () => {
           description: '',
           credits: 3,
           capacity: 30,
-          semester: '',
           schedule: {
             days: [],
             startTime: '09:00',
@@ -172,13 +163,8 @@ const AddCourse = () => {
           prerequisites: []
         });
       } else {
-        // Handle specific validation errors from the backend
-        if (data.errors) {
-          const errorMessages = Object.values(data.errors).flat();
-          setError(errorMessages.join(', '));
-        } else {
-          setError(data.message || 'Failed to add course');
-        }
+        const data = await response.json();
+        setError(data.message || 'Failed to create course');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -266,18 +252,6 @@ const AddCourse = () => {
                   value={formData.capacity}
                   onChange={handleChange}
                   inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  required
-                  fullWidth
-                  label="Semester"
-                  name="semester"
-                  value={formData.semester}
-                  onChange={handleChange}
-                  placeholder="e.g. Term 1 S.Y 2025"
-                  helperText="Format: Term 1 S.Y 2025"
                 />
               </Grid>
               <Grid item xs={12}>

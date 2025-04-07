@@ -11,12 +11,15 @@ import {
 
 const Navbar = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('token');
+      const userData = JSON.parse(localStorage.getItem('user'));
       setIsAuthenticated(!!token);
+      setUser(userData);
     };
 
     // Check auth status on mount
@@ -35,6 +38,7 @@ const Navbar = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setIsAuthenticated(false);
+    setUser(null);
     // Dispatch event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));
     navigate('/');
@@ -48,7 +52,7 @@ const Navbar = () => {
             AnimoSheesh!
           </Typography>
           <Box>
-            {isAuthenticated ? (
+            {isAuthenticated && user ? (
               <>
                 <Button color="inherit" component={RouterLink} to="/dashboard">
                   Dashboard
@@ -56,14 +60,18 @@ const Navbar = () => {
                 <Button color="inherit" component={RouterLink} to="/courses">
                   Courses
                 </Button>
-                <Button color="inherit" component={RouterLink} to="/enrollments">
-                  Enrollments
-                </Button>
-                <Button color="inherit" component={RouterLink} to="/grades">
-                  Grades
-                </Button>
+                {user.role === 'student' && (
+                  <Button color="inherit" component={RouterLink} to="/enrollments">
+                    My Enrollments
+                  </Button>
+                )}
+                {(user.role === 'student' || user.role === 'faculty') && (
+                  <Button color="inherit" component={RouterLink} to="/grades">
+                    Grades
+                  </Button>
+                )}
                 <Button color="inherit" onClick={handleLogout}>
-                  Logout
+                  Logout ({user.firstName})
                 </Button>
               </>
             ) : (
