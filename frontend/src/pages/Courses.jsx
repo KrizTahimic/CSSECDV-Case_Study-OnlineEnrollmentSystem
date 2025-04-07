@@ -1,137 +1,77 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Grid, Card, CardContent, CardActions, Button, CircularProgress, Snackbar, Alert } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
+  Button,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URLS from '../config/api';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [instructors, setInstructors] = useState({});
-  const [user, setUser] = useState(null);
-  const [enrollments, setEnrollments] = useState([]);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [openCourseDialog, setOpenCourseDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    code: '',
+    title: '',
+    description: '',
+    credits: '',
+    instructor: ''
+  });
+  const [instructors, setInstructors] = useState([]);
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  const fetchInstructorDetails = async (instructorId) => {
+  const fetchCourses = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn('No token found for instructor fetch');
-        return;
-      }
-      
-      console.log('Fetching instructor details for ID:', instructorId);
-      
-      const response = await fetch(`http://localhost:3001/api/auth/users/${instructorId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        console.warn(`Failed to fetch instructor details for ID: ${instructorId}. Status: ${response.status}`);
-        return;
-      }
-      
-      const data = await response.json();
-      console.log('Received instructor data:', data);
-      
-      if (!data || !data.firstName || !data.lastName) {
-        console.warn('Invalid instructor data received:', data);
-        return;
-      }
-      
-      setInstructors(prev => {
-        if (prev[instructorId]?.firstName === data.firstName && 
-            prev[instructorId]?.lastName === data.lastName) {
-          return prev;
-        }
-        return {
-          ...prev,
-          [instructorId]: {
-            firstName: data.firstName,
-            lastName: data.lastName
-          }
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching instructor details:', error);
-    }
-  };
-
-  const fetchUserData = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user'));
-      
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-      
-      setUser(userData);
-      await fetchCourses(userData);
-    } catch (err) {
-      console.error('Error in fetchUserData:', err);
-      setError('Network error. Please try again.');
-    }
-  };
-
-  const fetchCourses = async (currentUser) => {
-    try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
       }
 
-      const response = await fetch('http://localhost:3002/api/courses', {
+      const response = await fetch(API_BASE_URLS.COURSE, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch courses');
-      }
-
-      const data = await response.json();
-      console.log('Fetched courses:', data);
-      
-      // Filter courses based on user role using the passed currentUser
-      if (currentUser && currentUser.role === 'faculty') {
-        console.log('Current user:', currentUser);
-        
-        const teacherCourses = data.filter(course => {
-          console.log(`Comparing course ${course.code}:`, {
-            courseInstructor: course.instructor,
-            userId: currentUser.id
-          });
-          
-          return course.instructor && course.instructor.toString() === currentUser.id.toString();
-        });
-        
-        console.log('Teacher courses:', teacherCourses);
-        setCourses(teacherCourses);
-      } else {
+      if (response.ok) {
+        const data = await response.json();
         setCourses(data);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to fetch courses');
       }
-      
-    } catch (error) {
-      console.error('Error in fetchCourses:', error);
-      setError(error.message);
+    } catch (err) {
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchEnrollments = async () => {
+  const fetchInstructors = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('http://localhost:3003/api/enrollment', {
+      const response = await fetch(`${API_BASE_URLS.AUTH}/users?role=faculty`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -139,107 +79,84 @@ const Courses = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setEnrollments(data);
-      }
-    } catch (error) {
-      console.error('Error fetching enrollments:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUserData();
-    fetchEnrollments();
-  }, [navigate]);
-
-  // Add a useEffect hook to fetch instructor details when the component mounts
-  useEffect(() => {
-    if (courses.length > 0) {
-      console.log('Fetching instructor details for all courses');
-      courses.forEach(course => {
-        if (course.instructor && !instructors[course.instructor]) {
-          console.log('Fetching details for instructor:', course.instructor);
-          fetchInstructorDetails(course.instructor);
-        }
-      });
-    }
-  }, [courses, instructors]);
-
-  // Helper function to check if user is enrolled in a course
-  const isEnrolled = (courseId) => {
-    return enrollments.some(enrollment => 
-      enrollment.course._id === courseId && enrollment.status === 'enrolled'
-    );
-  };
-
-  const handleCloseSnackbar = () => {
-    setSuccessMessage('');
-  };
-
-  const handleEnroll = async (courseId) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-
-      if (!user) {
-        setError('User data not found. Please log in again.');
-        return;
-      }
-
-      if (user.role !== 'student') {
-        setError('Only students can enroll in courses');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3003/api/enrollment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          course: courseId
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const action = data.status === 'enrolled' ? 'enrolled in' : 're-enrolled in';
-        setSuccessMessage(`Successfully ${action} the course!`);
-        await fetchEnrollments();
-        await fetchCourses(user);
-        setError('');
-        return;
-      }
-
-      try {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to enroll in course');
-      } catch (parseError) {
-        setError(`Failed to enroll in course: ${response.statusText}`);
+        setInstructors(data);
       }
     } catch (err) {
-      console.error('Error in handleEnroll:', err);
+      console.error('Error fetching instructors:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCourses();
+    if (user.role === 'admin') {
+      fetchInstructors();
+    }
+  }, [navigate, user.role]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(API_BASE_URLS.COURSE, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        setSuccess('Course created successfully');
+        setOpenCourseDialog(false);
+        fetchCourses();
+        setFormData({
+          code: '',
+          title: '',
+          description: '',
+          credits: '',
+          instructor: ''
+        });
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to create course');
+      }
+    } catch (err) {
       setError('Network error. Please try again.');
     }
   };
 
-  // Add this helper function to format the schedule
-  const formatSchedule = (schedule) => {
-    if (!schedule) return 'Not scheduled';
-    
-    // If schedule is a string, return it directly
-    if (typeof schedule === 'string') return schedule;
-    
-    // If schedule is an object with days, startTime, endTime, room
-    if (schedule.days && schedule.startTime && schedule.endTime) {
-      return `${schedule.days.join(', ')} ${schedule.startTime}-${schedule.endTime}`;
+  const handleDelete = async (courseId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URLS.COURSE}/${courseId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setSuccess('Course deleted successfully');
+        fetchCourses();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to delete course');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
     }
-    
-    // Fallback
-    return JSON.stringify(schedule);
   };
 
   if (loading) {
@@ -252,126 +169,138 @@ const Courses = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Container>
-        <Box sx={{ mt: 4 }}>
-          <Typography color="error" variant="h6">
-            {error}
-          </Typography>
-        </Box>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="lg">
+    <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          {user?.role === 'faculty' ? 'My Courses' : 'Available Courses'}
+          Courses
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-        <Grid container spacing={3}>
-          {courses.length === 0 ? (
-            <Grid item xs={12}>
-              <Alert severity="info">
-                {user?.role === 'faculty' 
-                  ? 'You are not assigned to teach any courses yet.'
-                  : 'No courses are available at the moment.'}
-              </Alert>
-            </Grid>
-          ) : (
-            courses.map((course) => (
-              <Grid item xs={12} sm={6} md={4} key={course._id}>
-                <Card sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  position: 'relative'
-                }}>
-                  <CardContent sx={{ 
-                    flexGrow: 1,
-                    pb: user?.role === 'student' ? 0 : 2
-                  }}>
-                    <Typography variant="h6" gutterBottom>
-                      {course.code} - {course.title}
-                    </Typography>
-                    {user?.role !== 'faculty' && (
-                      <Typography color="textSecondary" gutterBottom>
-                        Instructor: {instructors[course.instructor] ? 
-                          `${instructors[course.instructor].firstName} ${instructors[course.instructor].lastName}` : 
-                          'Loading...'}
-                      </Typography>
-                    )}
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" gutterBottom>
-                        Credits: {course.credits}
-                      </Typography>
-                      <Typography variant="body2" gutterBottom>
-                        Schedule: {formatSchedule(course.schedule)}
-                      </Typography>
-                      <Typography variant="body2" gutterBottom>
-                        Room: {course.schedule?.room || 'TBD'}
-                      </Typography>
-                      <Typography variant="body2" gutterBottom>
-                        Available Spots: {course.capacity - (course.enrolled || 0)}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                  {user && user.role === 'student' && (
-                    <CardActions sx={{ 
-                      p: 2,
-                      pt: 0,
-                      mt: 'auto'
-                    }}>
-                      <Button 
-                        size="small" 
-                        color="primary"
-                        variant={isEnrolled(course._id) ? "outlined" : "contained"}
-                        onClick={() => handleEnroll(course._id)}
-                        disabled={
-                          (course.enrolled || 0) >= course.capacity || 
-                          isEnrolled(course._id)
-                        }
-                        fullWidth
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
+        {user.role === 'admin' && (
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setOpenCourseDialog(true)}
+            >
+              Add Course
+            </Button>
+          </Box>
+        )}
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Code</TableCell>
+                <TableCell>Title</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Credits</TableCell>
+                <TableCell>Instructor</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {courses.map((course) => (
+                <TableRow key={course._id}>
+                  <TableCell>{course.code}</TableCell>
+                  <TableCell>{course.title}</TableCell>
+                  <TableCell>{course.description}</TableCell>
+                  <TableCell>{course.credits}</TableCell>
+                  <TableCell>
+                    {course.instructor?.firstName} {course.instructor?.lastName}
+                  </TableCell>
+                  <TableCell>
+                    {user.role === 'admin' && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleDelete(course._id)}
                       >
-                        {isEnrolled(course._id) ? 'Enrolled' : 'Enroll'}
+                        Delete
                       </Button>
-                    </CardActions>
-                  )}
-                </Card>
-              </Grid>
-            ))
-          )}
-        </Grid>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Box>
-      <Snackbar 
-        open={!!successMessage} 
-        autoHideDuration={4000} 
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity="success"
-          sx={{ 
-            width: '100%',
-            bgcolor: 'white',
-            color: 'success.main',
-            border: 1,
-            borderColor: 'success.main',
-            '& .MuiAlert-icon': {
-              color: 'success.main'
-            }
-          }}
-        >
-          {successMessage}
-        </Alert>
-      </Snackbar>
+
+      <Dialog open={openCourseDialog} onClose={() => setOpenCourseDialog(false)}>
+        <DialogTitle>Add Course</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Course Code"
+            name="code"
+            value={formData.code}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            margin="normal"
+            multiline
+            rows={4}
+          />
+          <TextField
+            fullWidth
+            label="Credits"
+            name="credits"
+            type="number"
+            value={formData.credits}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            select
+            fullWidth
+            label="Instructor"
+            name="instructor"
+            value={formData.instructor}
+            onChange={handleChange}
+            margin="normal"
+            required
+          >
+            {instructors.map((instructor) => (
+              <MenuItem key={instructor._id} value={instructor._id}>
+                {instructor.firstName} {instructor.lastName}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCourseDialog(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained" color="primary">
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

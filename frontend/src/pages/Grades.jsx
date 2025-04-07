@@ -22,6 +22,7 @@ import {
   Tooltip
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URLS from '../config/api';
 
 const getGradeFromScore = (score) => {
   if (score >= 95) return 4.0;
@@ -119,7 +120,7 @@ const Grades = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3004/api/grades', {
+      const response = await fetch(API_BASE_URLS.GRADE, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -145,7 +146,7 @@ const Grades = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3002/api/courses', {
+      const response = await fetch(API_BASE_URLS.COURSE, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -166,7 +167,7 @@ const Grades = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Fetching enrolled students for course:', courseId);
-      const response = await fetch(`http://localhost:3003/api/enrollment/course/${courseId}`, {
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/course/${courseId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -208,7 +209,7 @@ const Grades = () => {
       const calculatedGrade = getGradeFromScore(numericScore);
       
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3004/api/grades', {
+      const response = await fetch(API_BASE_URLS.GRADE, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

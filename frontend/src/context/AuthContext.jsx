@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import jwt_decode from 'jwt-decode';
+import API_BASE_URLS from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -37,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:3001/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URLS.AUTH}/login`, {
         email,
         password
       });
@@ -55,7 +56,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:3001/api/auth/register', userData);
+      const response = await axios.post(`${API_BASE_URLS.AUTH}/register`, userData);
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       setUser(user);

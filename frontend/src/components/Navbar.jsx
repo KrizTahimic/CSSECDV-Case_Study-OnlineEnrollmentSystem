@@ -17,7 +17,17 @@ const Navbar = () => {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user'));
+      const userDataString = localStorage.getItem('user');
+      let userData = null;
+
+      try {
+        if (userDataString) {
+          userData = JSON.parse(userDataString);
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+
       setIsAuthenticated(!!token);
       setUser(userData);
     };
@@ -71,7 +81,7 @@ const Navbar = () => {
                   </Button>
                 )}
                 <Button color="inherit" onClick={handleLogout}>
-                  Logout ({user.firstName})
+                  Logout ({user.firstName || 'User'})
                 </Button>
               </>
             ) : (

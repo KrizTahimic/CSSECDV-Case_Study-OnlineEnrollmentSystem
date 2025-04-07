@@ -1,26 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Grid, Paper, Button } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Box,
+  Grid,
+  Paper,
+  Button,
+  Alert
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+  let user = { firstName: 'User' };
+  
+  try {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      user = JSON.parse(userData);
+    }
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+  }
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      // Add detailed debugging
-      console.log('Dashboard - User data:', {
-        role: parsedUser.role,
-        roleType: typeof parsedUser.role,
-        isStudent: parsedUser.role === 'student',
-        isFaculty: parsedUser.role === 'faculty',
-        fullUser: parsedUser
-      });
-      setUser(parsedUser);
-    } else {
+    const token = localStorage.getItem('token');
+    if (!token) {
       navigate('/login');
+      return;
     }
   }, [navigate]);
 
@@ -30,33 +38,28 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  if (!user) {
-    return null;
-  }
-
-  // Function to determine if enrollment should be shown
-  const shouldShowEnrollment = () => {
-    const shouldShow = user.role === 'student';
-    console.log('Should show enrollment?', {
-      currentRole: user.role,
-      shouldShow: shouldShow
-    });
-    return shouldShow;
-  };
-
   return (
-    <Container maxWidth="lg">
+    <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Dashboard
         </Typography>
-        <Typography variant="h6" gutterBottom>
-          Welcome, {user.firstName} {user.lastName}!
+        <Typography variant="h5" gutterBottom>
+          Welcome, {user.firstName || 'Professor'} {user.lastName || 'X'}!
         </Typography>
-        <Button variant="outlined" color="primary" onClick={handleLogout} sx={{ mb: 3 }}>
-          Logout
+        <Button 
+          variant="outlined" 
+          color="primary" 
+          onClick={handleLogout}
+          sx={{ mb: 4 }}
+        >
+          LOGOUT
         </Button>
-
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <Paper
@@ -64,78 +67,79 @@ const Dashboard = () => {
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                height: 240,
+                height: '100%'
               }}
             >
               <Typography variant="h6" gutterBottom>
                 Courses
               </Typography>
-              <Typography variant="body1" paragraph>
+              <Typography variant="body1" sx={{ mb: 2 }}>
                 View and manage available courses.
               </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => navigate('/courses')}
-                sx={{ mt: 'auto' }}
-              >
-                Go to Courses
-              </Button>
-            </Paper>
-          </Grid>
-          
-          {/* Only show enrollment container for students */}
-          {user.role === 'student' && (
-            <Grid item xs={12} md={4}>
-              <Paper
-                sx={{
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: 240,
-                }}
-              >
-                <Typography variant="h6" gutterBottom>
-                  Enrollments
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  View and manage your course enrollments.
-                </Typography>
+              <Box sx={{ mt: 'auto' }}>
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={() => navigate('/enrollments')}
-                  sx={{ mt: 'auto' }}
+                  fullWidth
+                  onClick={() => navigate('/courses')}
                 >
-                  Go to Enrollments
+                  GO TO COURSES
                 </Button>
-              </Paper>
-            </Grid>
-          )}
-
+              </Box>
+            </Paper>
+          </Grid>
           <Grid item xs={12} md={4}>
             <Paper
               sx={{
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                height: 240,
+                height: '100%'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>
+                Enrollments
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                View and manage your course enrollments.
+              </Typography>
+              <Box sx={{ mt: 'auto' }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={() => navigate('/enrollments')}
+                >
+                  GO TO ENROLLMENTS
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Paper
+              sx={{
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%'
               }}
             >
               <Typography variant="h6" gutterBottom>
                 Grades
               </Typography>
-              <Typography variant="body1" paragraph>
+              <Typography variant="body1" sx={{ mb: 2 }}>
                 View your grades and academic performance.
               </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => navigate('/grades')}
-                sx={{ mt: 'auto' }}
-              >
-                Go to Grades
-              </Button>
+              <Box sx={{ mt: 'auto' }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={() => navigate('/grades')}
+                >
+                  GO TO GRADES
+                </Button>
+              </Box>
             </Paper>
           </Grid>
         </Grid>
