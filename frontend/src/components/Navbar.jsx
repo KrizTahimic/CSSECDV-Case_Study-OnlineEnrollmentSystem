@@ -55,42 +55,49 @@ const Navbar = () => {
   };
 
   return (
-    <AppBar position="static">
+    <AppBar position="static" sx={{ bgcolor: '#2e7d32' }}>
       <Container maxWidth="lg">
-        <Toolbar>
+        <Toolbar sx={{ minHeight: '48px' }}>
           <Typography variant="h6" component={RouterLink} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
             AnimoSheesh!
           </Typography>
-          <Box>
+          <Box sx={{ 
+            '& .MuiButton-root': { 
+              textTransform: 'uppercase', 
+              px: 2, 
+              fontSize: '0.85rem',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.1)'
+              }
+            } 
+          }}>
             {isAuthenticated && user ? (
               <>
                 <Button color="inherit" component={RouterLink} to="/dashboard">
-                  Dashboard
+                  DASHBOARD
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/courses">
-                  Courses
+                  COURSES
                 </Button>
-                {user.role === 'student' && (
-                  <Button color="inherit" component={RouterLink} to="/enrollments">
-                    My Enrollments
-                  </Button>
-                )}
                 {(user.role === 'student' || user.role === 'faculty') && (
-                  <Button color="inherit" component={RouterLink} to="/grades">
-                    Grades
+                  <Button color="inherit" component={RouterLink} to="/enrollments">
+                    MY ENROLLMENTS
                   </Button>
                 )}
+                <Button color="inherit" component={RouterLink} to="/grades">
+                  GRADES
+                </Button>
                 <Button color="inherit" onClick={handleLogout}>
-                  Logout ({user.firstName || 'User'})
+                  LOGOUT {user.firstName ? `(${user.firstName})` : ''}
                 </Button>
               </>
             ) : (
               <>
                 <Button color="inherit" component={RouterLink} to="/login">
-                  Login
+                  LOGIN
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/register">
-                  Register
+                  REGISTER
                 </Button>
               </>
             )}

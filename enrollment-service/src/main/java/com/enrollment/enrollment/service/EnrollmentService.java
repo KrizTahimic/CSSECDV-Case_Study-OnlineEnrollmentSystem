@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,27 +21,42 @@ public class EnrollmentService {
     private final CourseClient courseClient;
 
     @CircuitBreaker(name = "basic")
-    public List<Enrollment> getStudentEnrollments(Long studentId) {
-        return enrollmentRepository.findByStudentIdAndActive(studentId, true);
+    public List<Enrollment> getStudentEnrollments(String studentId) {
+        // Get only enrolled (not dropped) enrollments
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentIdAndStatus(studentId, "enrolled");
+        
+        // Populate course details for each enrollment
+        return enrollments.stream().map(enrollment -> {
+            try {
+                Course course = courseClient.getCourse(enrollment.getCourseId());
+                enrollment.setCourse(course);
+                return enrollment;
+            } catch (Exception e) {
+                System.err.println("Error fetching course details for enrollment: " + e.getMessage());
+                return enrollment;
+            }
+        }).collect(Collectors.toList());
     }
 
     @CircuitBreaker(name = "basic")
-    public List<Enrollment> getCourseEnrollments(Long courseId) {
+    public List<Enrollment> getCourseEnrollments(String courseId) {
         return enrollmentRepository.findByCourseId(courseId);
     }
 
     @CircuitBreaker(name = "basic")
     @Transactional
-    public Enrollment enrollStudent(Long studentId, Long courseId) {
+    public Enrollment enrollStudent(String studentId, String courseId) {
         // Check if student is already enrolled
-        Optional<Enrollment> existingEnrollment = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId);
-        if (existingEnrollment.isPresent() && existingEnrollment.get().getActive()) {
+        if (enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId).isPresent()) {
             throw new RuntimeException("Student is already enrolled in this course");
         }
 
         // Get course details and check if it's open
         Course course = courseClient.getCourse(courseId);
-        if (!course.getIsOpen()) {
+        if (course == null) {
+            throw new RuntimeException("Course not found");
+        }
+        if (!"open".equals(course.getStatus())) {
             throw new RuntimeException("Course is not open for enrollment");
         }
 
@@ -57,15 +73,15 @@ public class EnrollmentService {
 
     @CircuitBreaker(name = "basic")
     @Transactional
-    public void unenrollStudent(Long studentId, Long courseId) {
+    public void unenrollStudent(String studentId, String courseId) {
         Enrollment enrollment = enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId)
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
-        if (!enrollment.getActive()) {
+        if ("dropped".equals(enrollment.getStatus())) {
             throw new RuntimeException("Student is not enrolled in this course");
         }
 
-        enrollment.setActive(false);
+        enrollment.setStatus("dropped");
         enrollmentRepository.save(enrollment);
 
         // Decrement course enrollment

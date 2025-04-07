@@ -41,45 +41,47 @@ const Dashboard = () => {
   return (
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
           Dashboard
         </Typography>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h5" gutterBottom sx={{ color: '#2e7d32', mb: 3 }}>
           Welcome, {user.firstName || 'Professor'} {user.lastName || 'X'}!
         </Typography>
-        <Button 
-          variant="outlined" 
-          color="primary" 
-          onClick={handleLogout}
-          sx={{ mb: 4 }}
-        >
-          LOGOUT
-        </Button>
+        
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
+        
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <Paper
+              elevation={3}
               sx={{
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%'
+                height: '100%',
+                borderTop: '4px solid #2e7d32',
+                borderRadius: '4px'
               }}
             >
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
                 Courses
               </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                View and manage available courses.
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                View and manage available courses. Browse the course catalog or add new courses.
               </Typography>
               <Box sx={{ mt: 'auto' }}>
                 <Button
                   variant="contained"
-                  color="primary"
+                  sx={{ 
+                    bgcolor: '#2e7d32',
+                    '&:hover': { bgcolor: '#1b5e20' },
+                    textTransform: 'uppercase',
+                    fontWeight: 'bold'
+                  }}
                   fullWidth
                   onClick={() => navigate('/courses')}
                 >
@@ -90,23 +92,31 @@ const Dashboard = () => {
           </Grid>
           <Grid item xs={12} md={4}>
             <Paper
+              elevation={3}
               sx={{
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%'
+                height: '100%',
+                borderTop: '4px solid #2e7d32',
+                borderRadius: '4px'
               }}
             >
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
                 Enrollments
               </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                View and manage your course enrollments.
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                View and manage your course enrollments. Track your current courses and enrollment status.
               </Typography>
               <Box sx={{ mt: 'auto' }}>
                 <Button
                   variant="contained"
-                  color="primary"
+                  sx={{ 
+                    bgcolor: '#2e7d32',
+                    '&:hover': { bgcolor: '#1b5e20' },
+                    textTransform: 'uppercase',
+                    fontWeight: 'bold'
+                  }}
                   fullWidth
                   onClick={() => navigate('/enrollments')}
                 >
@@ -117,23 +127,31 @@ const Dashboard = () => {
           </Grid>
           <Grid item xs={12} md={4}>
             <Paper
+              elevation={3}
               sx={{
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%'
+                height: '100%',
+                borderTop: '4px solid #2e7d32',
+                borderRadius: '4px'
               }}
             >
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
                 Grades
               </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                View your grades and academic performance.
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                View your grades and academic performance. Monitor your progress in all enrolled courses.
               </Typography>
               <Box sx={{ mt: 'auto' }}>
                 <Button
                   variant="contained"
-                  color="primary"
+                  sx={{ 
+                    bgcolor: '#2e7d32',
+                    '&:hover': { bgcolor: '#1b5e20' },
+                    textTransform: 'uppercase',
+                    fontWeight: 'bold'
+                  }}
                   fullWidth
                   onClick={() => navigate('/grades')}
                 >

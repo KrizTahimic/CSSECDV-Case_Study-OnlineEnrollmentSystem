@@ -4,7 +4,6 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.index.Indexed;
-import java.util.Set;
 
 @Data
 @Document(collection = "users")
@@ -18,5 +17,5 @@ public class User {
     private String firstName;
     private String lastName;
     private String password;
-    private Set<String> roles;
+    private String role;
 } 

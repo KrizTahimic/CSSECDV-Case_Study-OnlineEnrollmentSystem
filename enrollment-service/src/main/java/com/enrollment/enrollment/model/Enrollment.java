@@ -1,32 +1,22 @@
 package com.enrollment.enrollment.model;
 
-import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-@Table(name = "enrollments")
+@Document(collection = "enrollments")
 public class Enrollment {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
-    private Long studentId;
+    private String studentId;
+    private String courseId;
+    private String status = "enrolled";
+    private LocalDateTime enrollmentDate = LocalDateTime.now();
 
-    @Column(nullable = false)
-    private Long courseId;
-
-    @Column(nullable = false)
-    private LocalDateTime enrollmentDate;
-
-    @Column(nullable = false)
-    private Boolean active;
-
-    @PrePersist
-    protected void onCreate() {
-        enrollmentDate = LocalDateTime.now();
-        active = true;
-    }
+    @Transient
+    private Course course;
 } 

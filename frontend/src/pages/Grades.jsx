@@ -19,7 +19,12 @@ import {
   TextField,
   MenuItem,
   Alert,
-  Tooltip
+  Tooltip,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Chip
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URLS from '../config/api';
@@ -46,54 +51,81 @@ const getGpaFromScore = (score) => {
   return 0.0;
 };
 
+// Function to get letter grade
+const getLetterGrade = (gpa) => {
+  if (gpa >= 4.0) return 'A';
+  if (gpa >= 3.5) return 'A-';
+  if (gpa >= 3.0) return 'B+';
+  if (gpa >= 2.5) return 'B';
+  if (gpa >= 2.0) return 'B-';
+  if (gpa >= 1.5) return 'C+';
+  if (gpa >= 1.0) return 'C';
+  return 'F';
+};
+
+// Function to get color for grade
+const getGradeColor = (gpa) => {
+  if (gpa >= 3.5) return '#2e7d32'; // Green for A/A-
+  if (gpa >= 2.5) return '#1976d2'; // Blue for B+/B
+  if (gpa >= 1.0) return '#ed6c02'; // Orange for B-/C+/C
+  return '#d32f2f'; // Red for F
+};
+
 const GRADE_OPTIONS = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'F', 'I', 'W'];
 
 const GradingScaleInfo = () => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mb: 2 }}>
-    <TableContainer component={Paper} sx={{ maxWidth: 300 }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell align="center">Score Range</TableCell>
-            <TableCell align="center">Grade</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          <TableRow>
-            <TableCell align="center">95-100</TableCell>
-            <TableCell align="center">4.0</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">89-94</TableCell>
-            <TableCell align="center">3.5</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">83-88</TableCell>
-            <TableCell align="center">3.0</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">78-82</TableCell>
-            <TableCell align="center">2.5</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">72-77</TableCell>
-            <TableCell align="center">2.0</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">66-71</TableCell>
-            <TableCell align="center">1.5</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">60-65</TableCell>
-            <TableCell align="center">1.0</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell align="center">Below 60</TableCell>
-            <TableCell align="center">0.0</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </TableContainer>
+  <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mb: 3 }}>
+    <Card elevation={3} sx={{ maxWidth: 300, borderTop: '4px solid #2e7d32' }}>
+      <CardContent>
+        <Typography variant="h6" component="div" gutterBottom fontWeight="bold" textAlign="center">
+          Grading Scale
+        </Typography>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell align="center">Score Range</TableCell>
+                <TableCell align="center">Grade</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow>
+                <TableCell align="center">95-100</TableCell>
+                <TableCell align="center">4.0 (A)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">89-94</TableCell>
+                <TableCell align="center">3.5 (A-)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">83-88</TableCell>
+                <TableCell align="center">3.0 (B+)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">78-82</TableCell>
+                <TableCell align="center">2.5 (B)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">72-77</TableCell>
+                <TableCell align="center">2.0 (B-)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">66-71</TableCell>
+                <TableCell align="center">1.5 (C+)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">60-65</TableCell>
+                <TableCell align="center">1.0 (C)</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell align="center">Below 60</TableCell>
+                <TableCell align="center">0.0 (F)</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
   </Box>
 );
 
@@ -260,7 +292,7 @@ const Grades = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
           {user.role === 'faculty' ? 'Manage Grades' : 'My Grades'}
         </Typography>
         
@@ -279,10 +311,23 @@ const Grades = () => {
         {user.role === 'faculty' && (
           <>
             <Box sx={{ mb: 3, width: '100%' }}>
-              <Paper sx={{ p: 2, width: '100%' }}>
+              <Paper 
+                elevation={3} 
+                sx={{ 
+                  p: 2, 
+                  width: '100%', 
+                  borderTop: '4px solid #2e7d32',
+                  borderRadius: '4px' 
+                }}
+              >
                 <Button
                   variant="contained"
-                  color="primary"
+                  sx={{ 
+                    bgcolor: '#2e7d32',
+                    '&:hover': { bgcolor: '#1b5e20' },
+                    textTransform: 'uppercase',
+                    fontWeight: 'bold'
+                  }}
                   onClick={() => setOpenGradeDialog(true)}
                   fullWidth
                 >
@@ -294,46 +339,71 @@ const Grades = () => {
           </>
         )}
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Course</TableCell>
-                {user.role === 'faculty' && <TableCell>Student</TableCell>}
-                <TableCell>Grade (GPA)</TableCell>
-                <TableCell>Score</TableCell>
-                <TableCell>Comments</TableCell>
-                <TableCell>Submission Date</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {grades.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={user.role === 'faculty' ? 6 : 5} align="center">
-                    No grades found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                grades.map((grade) => (
-                  <TableRow key={grade._id}>
-                    <TableCell>{grade.course?.code} - {grade.course?.title}</TableCell>
+        <Grid container spacing={3}>
+          {grades.length === 0 ? (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, textAlign: 'center' }}>
+                <Typography variant="body1">
+                  No grades found
+                </Typography>
+              </Paper>
+            </Grid>
+          ) : (
+            grades.map((grade) => (
+              <Grid item xs={12} sm={6} md={4} key={grade._id}>
+                <Card sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  overflow: 'visible',
+                  borderTop: '4px solid',
+                  borderColor: getGradeColor(grade.grade || 0)
+                }}>
+                  <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                      <Typography variant="h6" component="div">
+                        {grade.course?.code}
+                      </Typography>
+                      <Chip 
+                        label={grade.grade?.toFixed(1)} 
+                        sx={{ 
+                          bgcolor: getGradeColor(grade.grade || 0),
+                          color: 'white',
+                          fontWeight: 'bold'
+                        }}
+                      />
+                    </Box>
+                    <Typography variant="body1" gutterBottom>
+                      <strong>{grade.course?.title}</strong>
+                    </Typography>
+                    
                     {user.role === 'faculty' && (
-                      <TableCell>
-                        {grade.student?.firstName} {grade.student?.lastName}
-                      </TableCell>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Student:</strong> {grade.student?.firstName} {grade.student?.lastName}
+                      </Typography>
                     )}
-                    <TableCell>{grade.grade?.toFixed(1)}</TableCell>
-                    <TableCell>{grade.score?.toFixed(1)}%</TableCell>
-                    <TableCell>{grade.comments || '-'}</TableCell>
-                    <TableCell>
-                      {new Date(grade.submittedAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Score:</strong> {grade.score?.toFixed(1)}%
+                    </Typography>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Grade:</strong> {grade.grade?.toFixed(1)} ({getLetterGrade(grade.grade || 0)})
+                    </Typography>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Comments:</strong> {grade.comments || 'No comments'}
+                    </Typography>
+                    
+                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                      <strong>Submitted:</strong> {new Date(grade.submittedAt).toLocaleDateString()}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          )}
+        </Grid>
       </Box>
 
       {/* Grade Submission Dialog */}
@@ -377,7 +447,7 @@ const Grades = () => {
               onChange={handleScoreChange}
               fullWidth
               inputProps={{ min: 0, max: 100, step: "0.1" }}
-              helperText={score ? `Grade (GPA) will be: ${getGradeFromScore(parseFloat(score)).toFixed(1)}` : ''}
+              helperText={score ? `Grade (GPA) will be: ${getGradeFromScore(parseFloat(score)).toFixed(1)} (${getLetterGrade(getGradeFromScore(parseFloat(score)))})` : ''}
             />
 
             <TextField
@@ -395,6 +465,10 @@ const Grades = () => {
           <Button
             onClick={handleSubmitGrade}
             variant="contained"
+            sx={{ 
+              bgcolor: '#2e7d32',
+              '&:hover': { bgcolor: '#1b5e20' }
+            }}
             disabled={!selectedCourse || !selectedStudent || !score}
           >
             Submit Grade

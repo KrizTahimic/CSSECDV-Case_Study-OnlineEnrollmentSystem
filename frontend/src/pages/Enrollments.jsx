@@ -3,22 +3,16 @@ import {
   Container,
   Typography,
   Box,
+  Paper,
+  CircularProgress,
+  Button,
+  Alert,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Paper,
-  CircularProgress,
-  Button,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem
+  TableRow
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URLS from '../config/api';
@@ -47,7 +41,25 @@ const Enrollments = () => {
         return;
       }
 
-      const response = await fetch(API_BASE_URLS.ENROLLMENT, {
+      // Get user from localStorage and ensure it exists
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      console.log('Current user:', user);
+
+      // Check if user is logged in and has necessary data
+      if (!user || (!user.id && !user.email)) {
+        console.error('User information not found');
+        setError('User information not found. Please log in again.');
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -55,12 +67,15 @@ const Enrollments = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched enrollments:', data);
         setEnrollments(data);
       } else {
         const errorData = await response.json();
+        console.error('Error response:', errorData);
         setError(errorData.message || 'Failed to fetch enrollments');
       }
     } catch (err) {
+      console.error('Fetch error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -70,7 +85,7 @@ const Enrollments = () => {
   const fetchCourses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(API_BASE_URLS.COURSE, {
+      const response = await fetch(`${API_BASE_URLS.COURSE}/open`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -100,7 +115,8 @@ const Enrollments = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          courseId: selectedCourse
+          courseId: selectedCourse,
+          studentId: user.email
         })
       });
 
@@ -118,10 +134,10 @@ const Enrollments = () => {
     }
   };
 
-  const handleDrop = async (enrollmentId) => {
+  const handleDrop = async (courseId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/${enrollmentId}`, {
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${user.id}/course/${courseId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -154,7 +170,7 @@ const Enrollments = () => {
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          My Enrollments
+          Enrollments
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -167,80 +183,76 @@ const Enrollments = () => {
           </Alert>
         )}
         {user.role === 'student' && (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 3 }}>
             <Button
               variant="contained"
-              color="primary"
-              onClick={() => setOpenEnrollmentDialog(true)}
+              sx={{ 
+                bgcolor: '#2e7d32',
+                '&:hover': { bgcolor: '#1b5e20' },
+                textTransform: 'uppercase',
+                fontWeight: 'bold'
+              }}
+              onClick={() => navigate('/courses')}
             >
-              Enroll in a Course
+              ENROLL IN A COURSE
             </Button>
           </Box>
         )}
+
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Course Code</TableCell>
-                <TableCell>Course Title</TableCell>
+                <TableCell>Course</TableCell>
                 <TableCell>Instructor</TableCell>
+                <TableCell>Enrollment Date</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {enrollments.map((enrollment) => (
-                <TableRow key={enrollment._id}>
-                  <TableCell>{enrollment.course?.code}</TableCell>
-                  <TableCell>{enrollment.course?.title}</TableCell>
-                  <TableCell>
-                    {enrollment.course?.instructor?.firstName}{' '}
-                    {enrollment.course?.instructor?.lastName}
-                  </TableCell>
-                  <TableCell>{enrollment.status}</TableCell>
-                  <TableCell>
-                    {user.role === 'student' && (
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleDrop(enrollment._id)}
-                      >
-                        Drop
-                      </Button>
-                    )}
+              {enrollments.length > 0 ? (
+                enrollments.map((enrollment) => (
+                  <TableRow key={enrollment.id}>
+                    <TableCell>
+                      {enrollment.course?.code} - {enrollment.course?.title}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.course?.instructor ? 
+                        `${enrollment.course.instructor.firstName} ${enrollment.course.instructor.lastName}` 
+                        : 'Unknown Instructor'}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(enrollment.enrollmentDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {capitalizeFirstLetter(enrollment.status)}
+                    </TableCell>
+                    <TableCell>
+                      {enrollment.status !== 'dropped' && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => handleDrop(enrollment.courseId)}
+                        >
+                          DROP
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    You are not enrolled in any courses yet.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </Box>
-
-      <Dialog open={openEnrollmentDialog} onClose={() => setOpenEnrollmentDialog(false)}>
-        <DialogTitle>Enroll in a Course</DialogTitle>
-        <DialogContent>
-          <TextField
-            select
-            fullWidth
-            label="Course"
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            margin="normal"
-          >
-            {courses.map((course) => (
-              <MenuItem key={course._id} value={course._id}>
-                {course.code} - {course.title}
-              </MenuItem>
-            ))}
-          </TextField>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEnrollmentDialog(false)}>Cancel</Button>
-          <Button onClick={handleEnroll} variant="contained" color="primary">
-            Enroll
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   );
 };

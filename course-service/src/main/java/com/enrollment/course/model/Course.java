@@ -1,34 +1,26 @@
 package com.enrollment.course.model;
 
-import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 @Data
-@Entity
-@Table(name = "courses")
+@Document(collection = "courses")
 public class Course {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
+    @Indexed(unique = true)
     private String code;
 
-    @Column(nullable = false)
-    private String name;
-
-    @Column(nullable = false)
+    private String title;
     private String description;
-
-    @Column(nullable = false)
     private Integer credits;
-
-    @Column(nullable = false)
     private Integer capacity;
-
-    @Column(nullable = false)
     private Integer enrolled;
-
-    @Column(nullable = false)
-    private Boolean isOpen;
+    private Schedule schedule;
+    private String status;
+    private String instructorId;
+    private Instructor instructor;
 } 

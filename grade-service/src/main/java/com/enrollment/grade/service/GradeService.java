@@ -16,22 +16,22 @@ public class GradeService {
     private final GradeRepository gradeRepository;
 
     @CircuitBreaker(name = "basic")
-    public List<Grade> getStudentGrades(Long studentId) {
+    public List<Grade> getStudentGrades(String studentId) {
         return gradeRepository.findByStudentId(studentId);
     }
 
     @CircuitBreaker(name = "basic")
-    public List<Grade> getCourseGrades(Long courseId) {
+    public List<Grade> getCourseGrades(String courseId) {
         return gradeRepository.findByCourseId(courseId);
     }
 
     @CircuitBreaker(name = "basic")
-    public Optional<Grade> getStudentCourseGrade(Long studentId, Long courseId) {
+    public Optional<Grade> getStudentCourseGrade(String studentId, String courseId) {
         return gradeRepository.findByStudentIdAndCourseId(studentId, courseId);
     }
 
     @CircuitBreaker(name = "basic")
-    public List<Grade> getFacultyGrades(Long facultyId) {
+    public List<Grade> getFacultyGrades(String facultyId) {
         return gradeRepository.findByFacultyId(facultyId);
     }
 

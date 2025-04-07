@@ -7,11 +7,11 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "course-service")
 public interface CourseClient {
     @GetMapping("/api/courses/{id}")
-    Course getCourse(@PathVariable Long id);
+    Course getCourse(@PathVariable String id);
 
     @PostMapping("/api/courses/{id}/enroll")
-    Course incrementEnrollment(@PathVariable Long id);
+    Course incrementEnrollment(@PathVariable String id);
 
     @PostMapping("/api/courses/{id}/unenroll")
-    Course decrementEnrollment(@PathVariable Long id);
+    Course decrementEnrollment(@PathVariable String id);
 } 

@@ -72,7 +72,7 @@ const Register = () => {
             firstName: loginData.firstName,
             lastName: loginData.lastName,
             email: loginData.username,
-            roles: loginData.roles
+            role: loginData.role
           }));
           // Dispatch the authStateChanged event
           window.dispatchEvent(new Event('authStateChanged'));

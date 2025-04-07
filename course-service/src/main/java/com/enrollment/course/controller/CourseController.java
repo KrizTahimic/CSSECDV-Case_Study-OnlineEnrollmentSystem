@@ -27,7 +27,7 @@ public class CourseController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Course> getCourseById(@PathVariable Long id) {
+    public ResponseEntity<Course> getCourseById(@PathVariable String id) {
         return courseService.getCourseById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -46,7 +46,7 @@ public class CourseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Course> updateCourse(@PathVariable Long id, @RequestBody Course course) {
+    public ResponseEntity<Course> updateCourse(@PathVariable String id, @RequestBody Course course) {
         try {
             return ResponseEntity.ok(courseService.updateCourse(id, course));
         } catch (RuntimeException e) {
@@ -55,13 +55,13 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
         courseService.deleteCourse(id);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/enroll")
-    public ResponseEntity<Course> incrementEnrollment(@PathVariable Long id) {
+    public ResponseEntity<Course> incrementEnrollment(@PathVariable String id) {
         try {
             return ResponseEntity.ok(courseService.incrementEnrollment(id));
         } catch (RuntimeException e) {
@@ -70,7 +70,7 @@ public class CourseController {
     }
 
     @PostMapping("/{id}/unenroll")
-    public ResponseEntity<Course> decrementEnrollment(@PathVariable Long id) {
+    public ResponseEntity<Course> decrementEnrollment(@PathVariable String id) {
         try {
             return ResponseEntity.ok(courseService.decrementEnrollment(id));
         } catch (RuntimeException e) {

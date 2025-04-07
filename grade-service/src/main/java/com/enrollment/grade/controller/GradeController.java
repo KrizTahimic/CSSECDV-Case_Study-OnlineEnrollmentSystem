@@ -17,26 +17,26 @@ public class GradeController {
     private final GradeService gradeService;
 
     @GetMapping("/student/{studentId}")
-    public ResponseEntity<List<Grade>> getStudentGrades(@PathVariable Long studentId) {
+    public ResponseEntity<List<Grade>> getStudentGrades(@PathVariable String studentId) {
         return ResponseEntity.ok(gradeService.getStudentGrades(studentId));
     }
 
     @GetMapping("/course/{courseId}")
-    public ResponseEntity<List<Grade>> getCourseGrades(@PathVariable Long courseId) {
+    public ResponseEntity<List<Grade>> getCourseGrades(@PathVariable String courseId) {
         return ResponseEntity.ok(gradeService.getCourseGrades(courseId));
     }
 
     @GetMapping("/student/{studentId}/course/{courseId}")
     public ResponseEntity<Grade> getStudentCourseGrade(
-            @PathVariable Long studentId,
-            @PathVariable Long courseId) {
+            @PathVariable String studentId,
+            @PathVariable String courseId) {
         return gradeService.getStudentCourseGrade(studentId, courseId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/faculty/{facultyId}")
-    public ResponseEntity<List<Grade>> getFacultyGrades(@PathVariable Long facultyId) {
+    public ResponseEntity<List<Grade>> getFacultyGrades(@PathVariable String facultyId) {
         return ResponseEntity.ok(gradeService.getFacultyGrades(facultyId));
     }
 

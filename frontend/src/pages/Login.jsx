@@ -37,7 +37,7 @@ const Login = () => {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.username,
-          roles: data.roles
+          role: data.role
         }));
         window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');

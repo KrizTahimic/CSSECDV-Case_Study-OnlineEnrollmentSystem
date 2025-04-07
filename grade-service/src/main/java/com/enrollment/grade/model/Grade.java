@@ -13,10 +13,10 @@ public class Grade {
     private Long id;
 
     @Column(nullable = false)
-    private Long studentId;
+    private String studentId;
 
     @Column(nullable = false)
-    private Long courseId;
+    private String courseId;
 
     @Column(nullable = false)
     private Double score;
@@ -28,7 +28,7 @@ public class Grade {
     private LocalDateTime submissionDate;
 
     @Column(nullable = false)
-    private Long facultyId;
+    private String facultyId;
 
     @PrePersist
     protected void onCreate() {

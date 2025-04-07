@@ -6,8 +6,8 @@ import {
   TextField,
   Button,
   MenuItem,
+  Grid,
   Paper,
-  CircularProgress,
   Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -18,21 +18,33 @@ const AddCourse = () => {
     code: '',
     title: '',
     description: '',
-    credits: '',
-    instructor: ''
+    credits: 3,
+    capacity: 30,
+    schedule: {
+      days: [],
+      startTime: '',
+      endTime: '',
+      room: ''
+    },
+    instructorId: '',
+    status: 'open'
   });
   const [instructors, setInstructors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     const fetchInstructors = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URLS.AUTH}/users?role=faculty`, {
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URLS.AUTH}/users?role=Faculty`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -41,24 +53,44 @@ const AddCourse = () => {
         if (response.ok) {
           const data = await response.json();
           setInstructors(data);
+        } else {
+          setError('Failed to fetch instructors');
         }
       } catch (err) {
-        console.error('Error fetching instructors:', err);
+        setError('Network error. Please try again.');
       }
     };
 
-    if (user.role === 'admin') {
-      fetchInstructors();
-    } else {
-      navigate('/courses');
-    }
-  }, [navigate, user.role]);
+    fetchInstructors();
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleScheduleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        [name]: value
+      }
+    }));
+  };
+
+  const handleDaysChange = (e) => {
+    const { value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        days: Array.isArray(value) ? value : [value]
+      }
     }));
   };
 
@@ -80,17 +112,26 @@ const AddCourse = () => {
       });
 
       if (response.ok) {
-        setSuccess('Course added successfully');
+        setSuccess('Course created successfully');
+        // Reset form
         setFormData({
           code: '',
           title: '',
           description: '',
-          credits: '',
-          instructor: ''
+          credits: 3,
+          capacity: 30,
+          schedule: {
+            days: [],
+            startTime: '',
+            endTime: '',
+            room: ''
+          },
+          instructorId: '',
+          status: 'open'
         });
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to add course');
+        setError(errorData.message || 'Failed to create course');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -98,10 +139,6 @@ const AddCourse = () => {
       setLoading(false);
     }
   };
-
-  if (user.role !== 'admin') {
-    return null;
-  }
 
   return (
     <Container>
@@ -120,71 +157,145 @@ const AddCourse = () => {
           </Alert>
         )}
         <Paper sx={{ p: 3 }}>
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Course Code"
-              name="code"
-              value={formData.code}
-              onChange={handleChange}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              margin="normal"
-              multiline
-              rows={4}
-            />
-            <TextField
-              fullWidth
-              label="Credits"
-              name="credits"
-              type="number"
-              value={formData.credits}
-              onChange={handleChange}
-              margin="normal"
-              required
-            />
-            <TextField
-              select
-              fullWidth
-              label="Instructor"
-              name="instructor"
-              value={formData.instructor}
-              onChange={handleChange}
-              margin="normal"
-              required
-            >
-              {instructors.map((instructor) => (
-                <MenuItem key={instructor._id} value={instructor._id}>
-                  {instructor.firstName} {instructor.lastName}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              sx={{ mt: 3 }}
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Add Course'}
-            </Button>
-          </Box>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Course Code"
+                  name="code"
+                  value={formData.code}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={3}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Credits"
+                  name="credits"
+                  type="number"
+                  value={formData.credits}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Capacity"
+                  name="capacity"
+                  type="number"
+                  value={formData.capacity}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Days"
+                  name="days"
+                  value={formData.schedule.days}
+                  onChange={handleDaysChange}
+                  SelectProps={{
+                    multiple: true
+                  }}
+                  required
+                >
+                  <MenuItem value="Monday">Monday</MenuItem>
+                  <MenuItem value="Tuesday">Tuesday</MenuItem>
+                  <MenuItem value="Wednesday">Wednesday</MenuItem>
+                  <MenuItem value="Thursday">Thursday</MenuItem>
+                  <MenuItem value="Friday">Friday</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Start Time"
+                  name="startTime"
+                  value={formData.schedule.startTime}
+                  onChange={handleScheduleChange}
+                  placeholder="9:00 AM"
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="End Time"
+                  name="endTime"
+                  value={formData.schedule.endTime}
+                  onChange={handleScheduleChange}
+                  placeholder="10:30 AM"
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Room"
+                  name="room"
+                  value={formData.schedule.room}
+                  onChange={handleScheduleChange}
+                  placeholder="Room 101"
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Instructor"
+                  name="instructorId"
+                  value={formData.instructorId}
+                  onChange={handleChange}
+                  required
+                >
+                  {instructors.map((instructor) => (
+                    <MenuItem key={instructor.id} value={instructor.id}>
+                      {instructor.firstName} {instructor.lastName}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  disabled={loading}
+                >
+                  {loading ? 'Creating...' : 'Create Course'}
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
         </Paper>
       </Box>
     </Container>
