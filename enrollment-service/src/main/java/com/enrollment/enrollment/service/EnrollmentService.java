@@ -34,6 +34,9 @@ public class EnrollmentService {
                 return enrollment;
             } catch (Exception e) {
                 System.err.println("Error fetching course details for enrollment: " + e.getMessage());
+                if (e.getMessage().contains("Connection refused") || e.getMessage().contains("Connection timed out")) {
+                    throw new RuntimeException("Course service is currently unavailable. Please try again later.");
+                }
                 return enrollment;
             }
         }).collect(Collectors.toList());

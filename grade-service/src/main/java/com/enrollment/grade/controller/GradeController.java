@@ -5,16 +5,24 @@ import com.enrollment.grade.service.GradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/grades")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", 
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
+        allowedHeaders = "*")
 public class GradeController {
 
     private final GradeService gradeService;
+
+    @GetMapping
+    public ResponseEntity<List<Grade>> getAllGrades() {
+        return ResponseEntity.ok(gradeService.getAllGrades());
+    }
 
     @GetMapping("/student/{studentId}")
     public ResponseEntity<List<Grade>> getStudentGrades(@PathVariable String studentId) {

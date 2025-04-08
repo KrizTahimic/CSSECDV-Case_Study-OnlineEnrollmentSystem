@@ -13,4 +13,5 @@ public class Course {
     private Integer enrolled;
     private String status;
     private String instructorId;
+    private Instructor instructor;
 } 

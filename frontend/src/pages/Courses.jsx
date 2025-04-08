@@ -84,7 +84,11 @@ const Courses = () => {
         return;
       }
 
-      const response = await fetch(API_BASE_URLS.COURSE, {
+      setLoading(true);
+      console.log('Current user:', user); // Debug: log user data
+
+      let url = API_BASE_URLS.COURSE;
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -92,13 +96,53 @@ const Courses = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setCourses(data);
+        console.log('All courses:', data); // Debug: log all courses
+        
+        // If user is faculty, filter courses to only show ones they teach
+        if (user.role && user.role.toLowerCase() === 'faculty') {
+          console.log('Filtering courses for faculty user:', user.firstName, user.lastName);
+          
+          // Try multiple ways to match the instructor
+          const facultyCourses = data.filter(course => {
+            // Match by email
+            if (course.instructor && course.instructor.email === user.email) {
+              return true;
+            }
+            
+            // Match by name (case insensitive)
+            if (course.instructor && 
+                course.instructor.firstName && 
+                course.instructor.lastName &&
+                course.instructor.firstName.toLowerCase() === user.firstName.toLowerCase() &&
+                course.instructor.lastName.toLowerCase() === user.lastName.toLowerCase()) {
+              return true;
+            }
+            
+            // Match by ID
+            if ((course.instructorId === user.id) || 
+                (course.instructor && course.instructor.id === user.id)) {
+              return true;
+            }
+            
+            return false;
+          });
+          
+          console.log('Filtered faculty courses:', facultyCourses);
+          setCourses(facultyCourses);
+        } else {
+          setCourses(data);
+        }
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Failed to fetch courses');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Error fetching courses:', err);
+      if (err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to the course service. Please check if the service is running.');
+      } else {
+        setError(err.message || 'An unexpected error occurred while fetching courses.');
+      }
     } finally {
       setLoading(false);
     }
@@ -266,7 +310,7 @@ const Courses = () => {
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Available Courses
+          {user.role === 'faculty' ? 'My Courses' : 'Available Courses'}
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -291,80 +335,83 @@ const Courses = () => {
         )}
         
         <Grid container spacing={3}>
-          {courses.map((course) => (
-            <Grid item xs={12} sm={6} md={4} key={course.id || course._id}>
-              <Card sx={{ 
-                height: '100%', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                overflow: 'visible',
-                borderTop: '4px solid #2e7d32',
-                borderRadius: '4px'
-              }}>
-                <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                  <Typography variant="h6" component="div" gutterBottom>
-                    {course.code} - {course.title}
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Instructor:</strong> {course.instructor ? 
-                      `${course.instructor.firstName} ${course.instructor.lastName}` : 
-                      'Unknown Instructor'}
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Credits:</strong> {course.credits}
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Schedule:</strong> {course.schedule?.days?.join(', ')} {course.schedule?.startTime} - {course.schedule?.endTime}
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Room:</strong> {course.schedule?.room}
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Available Spots:</strong> {course.capacity - (course.enrolled || 0)}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  {(user.role === 'student' || !user.role) && (
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      fullWidth
-                      sx={{ 
-                        bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#2e7d32', 
-                        '&:hover': { bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#1b5e20' },
-                        borderRadius: 0,
-                        py: 0.75,
-                        textTransform: 'uppercase',
-                        fontWeight: 'bold'
-                      }}
-                      onClick={() => handleEnroll(course.id || course._id)}
-                      disabled={course.status === 'closed' || (course.capacity <= course.enrolled) || isEnrolled(course.id || course._id)}
-                    >
-                      {isEnrolled(course.id || course._id) ? 'ENROLLED' : 'ENROLL'}
-                    </Button>
-                  )}
-                  {user.role === 'admin' && (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      fullWidth
-                      onClick={() => handleDelete(course.id || course._id)}
-                    >
-                      DELETE
-                    </Button>
-                  )}
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-          {courses.length === 0 && (
+          {courses.length === 0 ? (
             <Grid item xs={12}>
               <Paper sx={{ p: 3, textAlign: 'center' }}>
                 <Typography variant="body1">
-                  No courses available for enrollment.
+                  {user.role === 'faculty' 
+                    ? 'You are not currently assigned to teach any courses.' 
+                    : 'No courses available at this time.'}
                 </Typography>
               </Paper>
             </Grid>
+          ) : (
+            courses.map((course) => (
+              <Grid item xs={12} sm={6} md={4} key={course.id || course._id}>
+                <Card sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  overflow: 'visible',
+                  borderTop: '4px solid #2e7d32',
+                  borderRadius: '4px'
+                }}>
+                  <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                    <Typography variant="h6" component="div" gutterBottom>
+                      {course.code} - {course.title}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Instructor:</strong> {course.instructor ? 
+                        `${course.instructor.firstName} ${course.instructor.lastName}` : 
+                        'Unknown Instructor'}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Credits:</strong> {course.credits}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Schedule:</strong> {course.schedule?.days?.join(', ')} {course.schedule?.startTime} - {course.schedule?.endTime}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Room:</strong> {course.schedule?.room}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Available Spots:</strong> {course.capacity - (course.enrolled || 0)}
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    {(user.role === 'student' || !user.role) && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        sx={{ 
+                          bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#2e7d32', 
+                          '&:hover': { bgcolor: isEnrolled(course.id || course._id) ? '#9e9e9e' : '#1b5e20' },
+                          borderRadius: 0,
+                          py: 0.75,
+                          textTransform: 'uppercase',
+                          fontWeight: 'bold'
+                        }}
+                        onClick={() => handleEnroll(course.id || course._id)}
+                        disabled={course.status === 'closed' || (course.capacity <= course.enrolled) || isEnrolled(course.id || course._id)}
+                      >
+                        {isEnrolled(course.id || course._id) ? 'ENROLLED' : 'ENROLL'}
+                      </Button>
+                    )}
+                    {user.role === 'admin' && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        fullWidth
+                        onClick={() => handleDelete(course.id || course._id)}
+                      >
+                        DELETE
+                      </Button>
+                    )}
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))
           )}
         </Grid>
       </Box>

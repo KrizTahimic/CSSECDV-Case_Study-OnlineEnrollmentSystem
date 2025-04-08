@@ -77,18 +77,18 @@ const Navbar = () => {
                   DASHBOARD
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/courses">
-                  COURSES
+                  {user.role === 'faculty' ? 'MY COURSES' : 'COURSES'}
                 </Button>
-                {(user.role === 'student' || user.role === 'faculty') && (
+                {user.role === 'student' && (
                   <Button color="inherit" component={RouterLink} to="/enrollments">
-                    MY ENROLLMENTS
+                    ENROLLMENTS
                   </Button>
                 )}
                 <Button color="inherit" component={RouterLink} to="/grades">
                   GRADES
                 </Button>
                 <Button color="inherit" onClick={handleLogout}>
-                  LOGOUT {user.firstName ? `(${user.firstName})` : ''}
+                  LOGOUT {user.firstName ? `(${user.firstName.toUpperCase()})` : ''}
                 </Button>
               </>
             ) : (

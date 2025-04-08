@@ -31,7 +31,24 @@ const Enrollments = () => {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [courses, setCourses] = useState([]);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user'));
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    // Redirect faculty users to dashboard
+    if (user.role === 'faculty') {
+      navigate('/dashboard');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    fetchEnrollments();
+    fetchCourses();
+  }, [navigate, user.role]);
 
   const fetchEnrollments = async () => {
     try {
@@ -76,7 +93,11 @@ const Enrollments = () => {
       }
     } catch (err) {
       console.error('Fetch error:', err);
-      setError('Network error. Please try again.');
+      if (err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to the enrollment service. Please check if the service is running.');
+      } else {
+        setError(err.message || 'An unexpected error occurred while fetching enrollments.');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,11 +120,6 @@ const Enrollments = () => {
       console.error('Error fetching courses:', err);
     }
   };
-
-  useEffect(() => {
-    fetchEnrollments();
-    fetchCourses();
-  }, [navigate]);
 
   const handleEnroll = async () => {
     try {

@@ -16,6 +16,11 @@ public class GradeService {
     private final GradeRepository gradeRepository;
 
     @CircuitBreaker(name = "basic")
+    public List<Grade> getAllGrades() {
+        return gradeRepository.findAll();
+    }
+
+    @CircuitBreaker(name = "basic")
     public List<Grade> getStudentGrades(String studentId) {
         return gradeRepository.findByStudentId(studentId);
     }

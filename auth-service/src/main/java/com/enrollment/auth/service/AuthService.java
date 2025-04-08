@@ -57,25 +57,35 @@ public class AuthService {
     }
 
     public AuthResponse login(AuthRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("id", user.getId());
-        claims.put("role", user.getRole());
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("id", user.getId());
+            claims.put("role", user.getRole());
 
-        String token = jwtTokenUtil.generateToken(claims, user);
+            String token = jwtTokenUtil.generateToken(claims, user);
 
-        return AuthResponse.builder()
-                .token(token)
-                .username(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .role(user.getRole())
-                .build();
+            return AuthResponse.builder()
+                    .token(token)
+                    .username(user.getEmail())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .role(user.getRole())
+                    .build();
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            throw new RuntimeException("Invalid email or password");
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            throw new RuntimeException("Account is disabled");
+        } catch (org.springframework.security.authentication.LockedException e) {
+            throw new RuntimeException("Account is locked");
+        } catch (Exception e) {
+            throw new RuntimeException("Authentication failed: " + e.getMessage());
+        }
     }
 } 

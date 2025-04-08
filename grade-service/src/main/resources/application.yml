@@ -18,6 +18,12 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  mvc:
+    cors:
+      allowed-origins: http://localhost:3000
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
 
 eureka:
   client:

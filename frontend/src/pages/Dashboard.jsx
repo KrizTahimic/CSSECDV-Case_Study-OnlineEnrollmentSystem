@@ -13,12 +13,13 @@ import { useNavigate } from 'react-router-dom';
 const Dashboard = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  let user = { firstName: 'User' };
+  let user = { firstName: 'User', role: 'student' };
   
   try {
     const userData = localStorage.getItem('user');
     if (userData) {
       user = JSON.parse(userData);
+      console.log('User role:', user.role);
     }
   } catch (error) {
     console.error('Error parsing user data:', error);
@@ -38,6 +39,8 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const isFaculty = user.role && (user.role.toLowerCase() === 'faculty');
+
   return (
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
@@ -55,7 +58,7 @@ const Dashboard = () => {
         )}
         
         <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={isFaculty ? 6 : 4}>
             <Paper
               elevation={3}
               sx={{
@@ -68,10 +71,12 @@ const Dashboard = () => {
               }}
             >
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Courses
+                {isFaculty ? 'My Courses' : 'Courses'}
               </Typography>
               <Typography variant="body1" sx={{ mb: 3 }}>
-                View and manage available courses. Browse the course catalog or add new courses.
+                {isFaculty 
+                  ? 'View and manage courses you are teaching. Track enrollments and student progress.'
+                  : 'View and manage available courses. Browse the course catalog or add new courses.'}
               </Typography>
               <Box sx={{ mt: 'auto' }}>
                 <Button
@@ -85,47 +90,51 @@ const Dashboard = () => {
                   fullWidth
                   onClick={() => navigate('/courses')}
                 >
-                  GO TO COURSES
+                  GO TO {isFaculty ? 'MY COURSES' : 'COURSES'}
                 </Button>
               </Box>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Paper
-              elevation={3}
-              sx={{
-                p: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-                borderTop: '4px solid #2e7d32',
-                borderRadius: '4px'
-              }}
-            >
-              <Typography variant="h6" gutterBottom fontWeight="bold">
-                Enrollments
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 3 }}>
-                View and manage your course enrollments. Track your current courses and enrollment status.
-              </Typography>
-              <Box sx={{ mt: 'auto' }}>
-                <Button
-                  variant="contained"
-                  sx={{ 
-                    bgcolor: '#2e7d32',
-                    '&:hover': { bgcolor: '#1b5e20' },
-                    textTransform: 'uppercase',
-                    fontWeight: 'bold'
-                  }}
-                  fullWidth
-                  onClick={() => navigate('/enrollments')}
-                >
-                  GO TO ENROLLMENTS
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={4}>
+          
+          {!isFaculty && (
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  borderTop: '4px solid #2e7d32',
+                  borderRadius: '4px'
+                }}
+              >
+                <Typography variant="h6" gutterBottom fontWeight="bold">
+                  Enrollments
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                  View and manage your course enrollments. Track your current courses and enrollment status.
+                </Typography>
+                <Box sx={{ mt: 'auto' }}>
+                  <Button
+                    variant="contained"
+                    sx={{ 
+                      bgcolor: '#2e7d32',
+                      '&:hover': { bgcolor: '#1b5e20' },
+                      textTransform: 'uppercase',
+                      fontWeight: 'bold'
+                    }}
+                    fullWidth
+                    onClick={() => navigate('/enrollments')}
+                  >
+                    GO TO ENROLLMENTS
+                  </Button>
+                </Box>
+              </Paper>
+            </Grid>
+          )}
+          
+          <Grid item xs={12} md={isFaculty ? 6 : 4}>
             <Paper
               elevation={3}
               sx={{
@@ -141,7 +150,9 @@ const Dashboard = () => {
                 Grades
               </Typography>
               <Typography variant="body1" sx={{ mb: 3 }}>
-                View your grades and academic performance. Monitor your progress in all enrolled courses.
+                {isFaculty
+                  ? 'Manage and update student grades for your courses. Monitor class performance.'
+                  : 'View your grades and academic performance. Monitor your progress in all enrolled courses.'}
               </Typography>
               <Box sx={{ mt: 'auto' }}>
                 <Button

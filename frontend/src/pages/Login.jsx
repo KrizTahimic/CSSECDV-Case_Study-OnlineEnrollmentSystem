@@ -42,10 +42,14 @@ const Login = () => {
         window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || 'Login failed. Please check your credentials and try again.');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to the authentication service. Please check if the service is running.');
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     }
   };
 
