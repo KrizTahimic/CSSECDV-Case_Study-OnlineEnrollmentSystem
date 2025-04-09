@@ -14,11 +14,12 @@ This system demonstrates several key concepts in distributed systems:
 
 ## System Architecture
 
-The system consists of the following microservices:
+The system consists of the following nodes:
 
 1. **Service Discovery (Eureka Server)**
    - Port: 8761
    - Handles service registration and discovery
+   - Displays which services are currently running
 
 2. **Authentication Service**
    - Port: 8081
@@ -204,8 +205,3 @@ Each service uses its own MongoDB database:
 3. If frontend can't connect to services:
    - Check if all services are running
    - Verify proxy settings in the frontend configuration
-
-## Contributors
-
-- [Your Name]
-- [Team Member Names]
