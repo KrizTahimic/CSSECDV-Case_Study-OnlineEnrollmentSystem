@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, TextField, Button, Paper, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URLS from '../config/api';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -34,19 +35,25 @@ const Register = () => {
 
     try {
       // Register the user
-      const registerResponse = await fetch('http://localhost:3001/api/auth/register', {
+      const registerResponse = await fetch(`${API_BASE_URLS.AUTH}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role
+        }),
       });
 
       const registerData = await registerResponse.json();
 
       if (registerResponse.ok) {
         // Automatically log in the user
-        const loginResponse = await fetch('http://localhost:3001/api/auth/login', {
+        const loginResponse = await fetch(`${API_BASE_URLS.AUTH}/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -60,8 +67,15 @@ const Register = () => {
         const loginData = await loginResponse.json();
 
         if (loginResponse.ok) {
+          console.log('Login response after registration:', loginData);
           localStorage.setItem('token', loginData.token);
-          localStorage.setItem('user', JSON.stringify(loginData.user));
+          localStorage.setItem('user', JSON.stringify({
+            id: loginData.user?.id || loginData._id || loginData.id,
+            firstName: loginData.user?.firstName || loginData.firstName,
+            lastName: loginData.user?.lastName || loginData.lastName,
+            email: loginData.user?.email || loginData.username || loginData.email,
+            role: loginData.user?.role || loginData.role
+          }));
           // Dispatch the authStateChanged event
           window.dispatchEvent(new Event('authStateChanged'));
           navigate('/dashboard');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, TextField, Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URLS from '../config/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(`${API_BASE_URLS.AUTH}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,15 +32,26 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        console.log('Login response data:', data);
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify({
+          id: data.user?.id || data._id || data.id,
+          firstName: data.user?.firstName || data.firstName,
+          lastName: data.user?.lastName || data.lastName,
+          email: data.user?.email || data.username || data.email,
+          role: data.user?.role || data.role
+        }));
         window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || 'Login failed. Please check your credentials and try again.');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to the authentication service. Please check if the service is running.');
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     }
   };
 

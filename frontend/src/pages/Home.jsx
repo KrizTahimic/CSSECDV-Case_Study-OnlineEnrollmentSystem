@@ -22,9 +22,16 @@ const Home = () => {
           alignItems: 'center',
         }}
       >
-        <Typography variant="h2" component="h1" gutterBottom>
-          Welcome to AnimoSheesh!
-        </Typography>
+        <Box sx={{ 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mb: 2
+        }}>
+          <Typography variant="h2" component="h1" gutterBottom>
+            Welcome to AnimoSheesh!
+          </Typography>
+        </Box>
         <Typography variant="h5" component="h2" gutterBottom color="text.secondary">
           A distributed system for managing course enrollments and grades
         </Typography>

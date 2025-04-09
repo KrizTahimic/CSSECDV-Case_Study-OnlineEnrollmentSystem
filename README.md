@@ -1,169 +1,222 @@
 # Online Enrollment System
 
-A distributed fault-tolerant online enrollment system demonstrating microservices architecture.
-
-## Setup Instructions
-
-1. Install MongoDB locally or use MongoDB Atlas
-2. Clone this repository
-3. Install dependencies for each node:
-
-```bash
-# Install dependencies for Auth Node
-cd nodes/auth-node
-npm install
-
-# Install dependencies for Course Node
-cd ../course-node
-npm install
-
-# Install dependencies for Enrollment Node
-cd ../enrollment-node
-npm install
-
-# Install dependencies for Grade Node
-cd ../grade-node
-npm install
-
-# Install dependencies for Frontend
-cd ../../frontend
-npm install
-```
-
-4. Create `.env` files in each node's directory using the provided `.env.example` files as templates
-5. Start each service:
-
-```bash
-# Start Auth Service (port 3001)
-cd nodes/auth-node
-npm start
-
-# Start Course Service (port 3002)
-cd ../course-node
-npm start
-
-# Start Enrollment Service (port 3003)
-cd ../enrollment-node
-npm start
-
-# Start Grade Service (port 3004)
-cd ../grade-node
-npm start
-
-# Start Frontend (port 3000)
-cd ../../frontend
-npm start
-```
-
-## Features
-
-- User authentication (login/logout)
-- View available courses
-- Student enrollment in courses
-- View grades (for students)
-- Upload grades (for faculty)
-
-## Architecture
-
-This system demonstrates distributed computing concepts:
-- Each service runs on a separate node
-- Services communicate via REST APIs
-- Fault tolerance: If one service fails, others continue to function
-- Each service has its own database
-
-## Testing Fault Tolerance
-
-To test the fault-tolerant nature of the system:
-1. Stop any service (e.g., the course service)
-2. Observe that other features continue to work
-3. Course-related features will be unavailable
-4. Restart the service to restore functionality
-
-## Development
-
-- Frontend: React with Material-UI
-- Backend: Node.js with Express
-- Database: MongoDB
-- Authentication: JWT
+A distributed online enrollment system built with Java Spring Boot microservices architecture.
 
 ## System Architecture
 
-The system is divided into the following nodes:
+The system consists of the following microservices:
 
-1. **Auth Node** (Port 3001)
+1. **Service Discovery (Eureka Server)**
+   - Port: 8761
+   - Handles service registration and discovery
+
+2. **Authentication Service**
+   - Port: 8081
    - Handles user authentication and authorization
-   - Manages user accounts and roles
    - JWT-based authentication
+   - User registration and login
 
-2. **Course Node** (Port 3002)
+3. **Course Service**
+   - Port: 8082
    - Manages course information
-   - Handles course listings and details
-   - Course capacity management
+   - Handles course enrollment capacity
+   - Course CRUD operations
 
-3. **Enrollment Node** (Port 3003)
-   - Handles student course enrollment
-   - Manages enrollment status
-   - Validates enrollment requests
+4. **Enrollment Service**
+   - Port: 8083
+   - Manages student course enrollments
+   - Communicates with Course Service for enrollment validation
+   - Handles enrollment and unenrollment operations
 
-4. **Grade Node** (Port 3004)
+5. **Grade Service**
+   - Port: 8084
    - Manages student grades
-   - Handles grade submission by faculty
-   - Grade history tracking
-
-5. **Frontend Node** (Port 3000)
-   - React-based user interface
-   - Responsive design
-   - Real-time updates
+   - Faculty grade submission
+   - Grade calculation and conversion
 
 ## Features
 
-1. Node Isolation: Each node operates independently
-2. JWT-based Authentication: Stateless authentication allows node restarts
-3. Database Redundancy: Each node has its own database
-4. Health Checks: Nodes monitor each other's status
-5. Graceful Degradation: Nodes continue to function when others are down
+- User authentication and authorization (JWT)
+- Course management
+- Student enrollment
+- Grade management
+- Fault tolerance with circuit breakers
+- Service discovery and load balancing
+- Distributed session management
 
-## API Endpoints
+## Prerequisites
 
-Each node exposes its own REST API:
+- Java 17 or higher
+- Maven 3.6 or higher
+- Git
+- Node.js 18 or higher (for frontend)
 
-- Auth Node: `/api/auth/*`
-- Course Node: `/api/courses/*`
-- Enrollment Node: `/api/enrollment/*`
-- Grade Node: `/api/grades/*`
+## Installation
 
-## Getting Started
-
-1. Install dependencies:
+1. Clone the repository:
    ```bash
+   git clone https://github.com/yourusername/OnlineEnrollmentSystem-P4.git
+   cd OnlineEnrollmentSystem-P4
+   ```
+
+2. Install dependencies for each service:
+   ```bash
+   # Install Service Discovery dependencies
+   cd service-discovery
+   mvn clean install
+
+   # Install Authentication Service dependencies
+   cd ../auth-service
+   mvn clean install
+
+   # Install Course Service dependencies
+   cd ../course-service
+   mvn clean install
+
+   # Install Enrollment Service dependencies
+   cd ../enrollment-service
+   mvn clean install
+
+   # Install Grade Service dependencies
+   cd ../grade-service
+   mvn clean install
+
+   # Install Frontend dependencies
+   cd ../frontend
    npm install
    ```
 
-2. ```bash
-   npm run seed:all
+## Running the Services
+
+Start the services in the following order:
+
+1. First, start the Service Discovery (Eureka Server):
+   ```bash
+   cd service-discovery
+   mvn spring-boot:run
+   ```
+   Wait until you see the Eureka server start up successfully (usually takes about 30 seconds).
+
+2. In a new terminal, start the Authentication Service:
+   ```bash
+   cd auth-service
+   mvn spring-boot:run
    ```
 
-3. Start the nodes from the project directory simultaneously:
+3. In another terminal, start the Course Service:
    ```bash
+   cd course-service
+   mvn spring-boot:run
+   ```
+
+4. In another terminal, start the Enrollment Service:
+   ```bash
+   cd enrollment-service
+   mvn spring-boot:run
+   ```
+
+5. In another terminal, start the Grade Service:
+   ```bash
+   cd grade-service
+   mvn spring-boot:run
+   ```
+
+6. Finally, in another terminal, start the Frontend:
+   ```bash
+   cd frontend
    npm start
    ```
 
-   Or start individual nodes:
-   ```bash
-   npm run start:auth
-   npm run start:courses
-   npm run start:enrollment
-   npm run start:grades
-   npm run start:frontend
-   ```
+## Verifying the Services
 
-4. Access the application at `http://localhost:3000`
+1. Check Eureka Dashboard:
+   - Open http://localhost:8761 in your browser
+   - You should see all services registered:
+     - auth-service (UP)
+     - course-service (UP)
+     - enrollment-service (UP)
+     - grade-service (UP)
+
+2. Access the Frontend:
+   - Open http://localhost:3000 in your browser
+   - The frontend will automatically proxy requests to the appropriate services
+
+## API Endpoints
+
+### Authentication Service (8081)
+- POST /api/auth/register - Register a new user
+- POST /api/auth/login - User login
+
+### Course Service (8082)
+- GET /api/courses - Get all courses
+- GET /api/courses/open - Get open courses
+- GET /api/courses/{id} - Get course by ID
+- POST /api/courses - Create a new course
+- PUT /api/courses/{id} - Update a course
+- DELETE /api/courses/{id} - Delete a course
+
+### Enrollment Service (8083)
+- GET /api/enrollments/student/{studentId} - Get student enrollments
+- GET /api/enrollments/course/{courseId} - Get course enrollments
+- POST /api/enrollments/student/{studentId}/course/{courseId} - Enroll a student
+- DELETE /api/enrollments/student/{studentId}/course/{courseId} - Unenroll a student
+
+### Grade Service (8084)
+- GET /api/grades/student/{studentId} - Get student grades
+- GET /api/grades/course/{courseId} - Get course grades
+- GET /api/grades/faculty/{facultyId} - Get faculty grades
+- POST /api/grades - Submit a grade
+- PUT /api/grades/{id} - Update a grade
+- DELETE /api/grades/{id} - Delete a grade
 
 ## Fault Tolerance
 
-The system is designed to be fault-tolerant:
-- Each node operates independently
-- If one node fails, others continue to function
-- Database redundancy ensures data persistence
-- Health checks monitor node status
-- Automatic recovery when nodes are restored 
+The system implements fault tolerance through:
+
+1. Circuit Breakers (Resilience4j)
+   - Prevents cascading failures
+   - Implements fallback mechanisms
+   - Configurable thresholds and timeouts
+
+2. Service Discovery
+   - Automatic service registration
+   - Load balancing
+   - Service health monitoring
+
+3. Distributed Sessions
+   - JWT-based authentication
+   - Stateless service architecture
+   - Session persistence across nodes
+
+## Database
+
+Each service uses its own MongoDB database for data persistence. For production, you should:
+
+1. Configure external databases
+2. Implement database replication
+3. Set up proper backup mechanisms
+
+## Security
+
+- JWT-based authentication
+- Role-based access control
+- Secure password storage (BCrypt)
+- CORS configuration
+- Input validation
+
+## Troubleshooting
+
+1. If a service fails to start:
+   - Check if the port is already in use
+   - Verify all dependencies are installed
+   - Check the service logs for errors
+
+2. If services can't communicate:
+   - Verify Eureka Server is running
+   - Check if services are registered in Eureka
+   - Verify network connectivity
+
+3. If frontend can't connect to services:
+   - Check if all services are running
+   - Verify proxy settings in vite.config.js
+   - Check browser console for errors

@@ -17,7 +17,17 @@ const Navbar = () => {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('token');
-      const userData = JSON.parse(localStorage.getItem('user'));
+      const userDataString = localStorage.getItem('user');
+      let userData = null;
+
+      try {
+        if (userDataString) {
+          userData = JSON.parse(userDataString);
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+
       setIsAuthenticated(!!token);
       setUser(userData);
     };
@@ -45,42 +55,64 @@ const Navbar = () => {
   };
 
   return (
-    <AppBar position="static">
+    <AppBar position="static" sx={{ bgcolor: '#2e7d32' }}>
       <Container maxWidth="lg">
-        <Toolbar>
-          <Typography variant="h6" component={RouterLink} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
+        <Toolbar sx={{ minHeight: '48px' }}>
+          <Typography variant="h6" component={RouterLink} to="/" sx={{ 
+            flexGrow: 1, 
+            textDecoration: 'none', 
+            color: 'inherit',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <img 
+              src="/logo.png" 
+              alt="AnimoSheesh Logo" 
+              style={{ 
+                height: '64px', 
+                marginRight: '10px',
+                verticalAlign: 'middle'
+              }} 
+            />
             AnimoSheesh!
           </Typography>
-          <Box>
+          <Box sx={{ 
+            '& .MuiButton-root': { 
+              textTransform: 'uppercase', 
+              px: 2, 
+              fontSize: '0.85rem',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.1)'
+              }
+            } 
+          }}>
             {isAuthenticated && user ? (
               <>
                 <Button color="inherit" component={RouterLink} to="/dashboard">
-                  Dashboard
+                  DASHBOARD
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/courses">
-                  Courses
+                  {user.role === 'faculty' ? 'MY COURSES' : 'COURSES'}
                 </Button>
                 {user.role === 'student' && (
                   <Button color="inherit" component={RouterLink} to="/enrollments">
-                    My Enrollments
+                    ENROLLMENTS
                   </Button>
                 )}
-                {(user.role === 'student' || user.role === 'faculty') && (
-                  <Button color="inherit" component={RouterLink} to="/grades">
-                    Grades
-                  </Button>
-                )}
+                <Button color="inherit" component={RouterLink} to="/grades">
+                  GRADES
+                </Button>
                 <Button color="inherit" onClick={handleLogout}>
-                  Logout ({user.firstName})
+                  LOGOUT {user.firstName ? `(${user.firstName.toUpperCase()})` : ''}
                 </Button>
               </>
             ) : (
               <>
                 <Button color="inherit" component={RouterLink} to="/login">
-                  Login
+                  LOGIN
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/register">
-                  Register
+                  REGISTER
                 </Button>
               </>
             )}
