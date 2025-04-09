@@ -252,13 +252,6 @@ const Grades = () => {
     try {
       setLoading(true);
       
-      // Enhanced user logging with faculty ID focus
-      console.log('Current faculty user ID check:', {
-        id: user.id,
-        email: user.email,
-        specificMatch: user.id === '654f8e3f2b1c4d5e6f7a8b90' || user.email === 'marygrace.piattos@university.edu'
-      });
-      
       const token = localStorage.getItem('token');
       console.log('Fetching courses from:', API_BASE_URLS.COURSE);
       
@@ -268,9 +261,11 @@ const Grades = () => {
         }
       });
 
+      console.log('Course API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('All courses fetched, count:', data.length);
+        console.log('Raw courses data:', data);
         
         if (!data || !Array.isArray(data) || data.length === 0) {
           console.log('No courses found or empty array returned');
@@ -278,67 +273,61 @@ const Grades = () => {
           return;
         }
         
-        // Directly search for VAL101 which is taught by Mary Grace
-        const val101 = data.find(course => course.code === 'VAL101');
-        if (val101) {
-          console.log('Found VAL101 course:', val101);
-          console.log('VAL101 instructor details:', {
-            instructorId: val101.instructorId,
-            instructorName: val101.instructor ? `${val101.instructor.firstName} ${val101.instructor.lastName}` : 'Unknown',
-            instructorEmail: val101.instructor ? val101.instructor.email : 'Unknown'
-          });
-          
-          // Check if Mary Grace is the instructor (by ID or email)
-          const isMaryGraceInstructor = 
-            (val101.instructorId === '654f8e3f2b1c4d5e6f7a8b90') || 
-            (val101.instructor && val101.instructor.email === 'marygrace.piattos@university.edu');
-          
-          console.log('Is Mary Grace the instructor of VAL101:', isMaryGraceInstructor);
+        // Log example course to check structure
+        if (data.length > 0) {
+          console.log('Example course structure:', data[0]);
+          console.log('Current user ID for comparison:', user.id);
+          console.log('Current user email for comparison:', user.email);
         }
         
-        // Filter faculty courses - multiple approaches for debugging
+        // Try both direct comparison and case-insensitive email matching
         const facultyCourses = data.filter(course => {
-          console.log(`Checking course ${course.code}:`, {
+          console.log(`Checking course ${course.code || 'unknown'}:`, {
             courseInstructorId: course.instructorId,
-            userID: user.id
+            userID: user.id,
+            courseInstructorEmail: course.instructor?.email,
+            userEmail: user.email
           });
           
-          // Direct ID check - use this first
+          // Check by instructorId
           if (course.instructorId === user.id) {
-            console.log(`✓ Match by ID for ${course.code} (${course.instructorId} = ${user.id})`);
+            console.log(`Match by ID for course: ${course.code || 'unknown'}`);
             return true;
           }
           
-          // Special case for Mary Grace Piattos 
-          if (user.email === 'marygrace.piattos@university.edu' && 
-              course.instructorId === '654f8e3f2b1c4d5e6f7a8b90') {
-            console.log(`✓ Special match for ${course.code} - Mary Grace Piattos`);
+          // Check by email (case insensitive)
+          if (course.instructor && course.instructor.email && 
+              course.instructor.email.toLowerCase() === user.email.toLowerCase()) {
+            console.log(`Match by email for course: ${course.code || 'unknown'}`);
             return true;
           }
           
-          // Double-check instructor email
-          if (course.instructor && course.instructor.email === user.email) {
-            console.log(`✓ Match by email for ${course.code} (${course.instructor.email} = ${user.email})`);
+          // As a fallback, compare instructor ID with user ID from MongoDB format
+          if (course.instructorId && user.id && course.instructorId.includes(user.id)) {
+            console.log(`Partial ID match for course: ${course.code || 'unknown'}`);
             return true;
           }
           
           return false;
         });
         
-        console.log('Filtered faculty courses:', facultyCourses);
+        console.log('Filtered faculty courses count:', facultyCourses.length);
         
-        if (facultyCourses.length > 0) {
-          setCourses(facultyCourses);
-        } else {
-          // For testing - include all courses if no matches found
-          console.log('⚠️ No faculty matches found - setting all courses for testing');
+        // If no courses found with strict matching, try looser matching
+        if (facultyCourses.length === 0 && data.length > 0) {
+          console.log('No courses found with strict matching, using all courses temporarily for debugging');
           setCourses(data);
+        } else {
+          setCourses(facultyCourses);
         }
       } else {
-        console.error('Failed to fetch courses:', await response.text());
+        const errorText = await response.text();
+        console.error('Failed to fetch courses:', errorText);
+        setError('Failed to fetch courses. Please try again.');
       }
     } catch (err) {
       console.error('Error fetching courses:', err);
+      setError('Error loading courses: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -352,17 +341,8 @@ const Grades = () => {
       const token = localStorage.getItem('token');
       console.log(`Fetching enrolled students for course: ${courseId}`);
       
-      // Temporary: Add test students immediately for testing
-      const testStudents = [{
-        id: 'test-student-id',
-        _id: 'test-student-id',
-        firstName: 'Gene Cedric',
-        lastName: 'Alejo',
-        email: 'genecedricalejo@gmail.com'
-      }];
-      
-      // Set test students first so we have something
-      setStudents(testStudents);
+      // Reset students array
+      setStudents([]);
       
       const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/course/${courseId}`, {
         headers: {
@@ -400,66 +380,74 @@ const Grades = () => {
         console.log('Processed student data for grading:', enrolledStudents);
         
         if (enrolledStudents.length === 0) {
-          console.log('No enrolled students found via enrollment service. Using test students.');
+          // If no students found through enrollment service, try fetching from auth service
+          await fetchStudentsFromAuth(courseId);
         } else {
-          // Add real students to our list (leaving test students for backup)
-          setStudents([...testStudents, ...enrolledStudents]);
+          setStudents(enrolledStudents);
         }
       } else {
         console.error('Failed to fetch enrollments:', await response.text());
-        console.log('Using test students for grading.');
+        // Try fetching from auth service as fallback
+        await fetchStudentsFromAuth(courseId);
       }
     } catch (err) {
       console.error('Error fetching enrolled students:', err);
-      console.log('Using test students for grading due to error.');
+      // Try fetching from auth service as fallback
+      await fetchStudentsFromAuth(courseId);
     } finally {
       setLoading(false);
     }
   };
   
-  const fetchAllStudents = async () => {
+  // Add a new function to fetch students from auth service as a fallback
+  const fetchStudentsFromAuth = async (courseId) => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       
-      console.log('Fetching all students from auth service');
-      const response = await fetch(`${API_BASE_URLS.AUTH}/users?role=Student`, {
+      // First get all enrollments for this course
+      const enrollmentResponse = await fetch(`${API_BASE_URLS.ENROLLMENT}/course/${courseId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('All students data:', data);
+      if (enrollmentResponse.ok) {
+        const enrollments = await enrollmentResponse.json();
+        const studentIds = enrollments
+          .filter(enrollment => enrollment.status === 'enrolled')
+          .map(enrollment => enrollment.studentId);
         
-        const formattedStudents = data.map(student => ({
-          id: student.id,
-          _id: student.id,
-          firstName: student.firstName || 'Unknown',
-          lastName: student.lastName || 'Student',
-          email: student.email || 'unknown@example.com'
-        }));
+        if (studentIds.length === 0) {
+          console.log('No enrollments found for this course');
+          return;
+        }
         
-        console.log('Formatted student data:', formattedStudents);
-        setStudents(formattedStudents);
-      } else {
-        console.error('Failed to fetch students from auth service:', await response.text());
-        // Last resort - provide a test student
-        const testStudent = {
-          id: 'test-student-id',
-          _id: 'test-student-id',
-          firstName: 'Gene Cedric',
-          lastName: 'Alejo',
-          email: 'genecedricalejo@gmail.com'
-        };
-        setStudents([testStudent]);
+        // Then fetch user details for each student
+        const fetchedStudents = [];
+        
+        for (const studentId of studentIds) {
+          const userResponse = await fetch(`${API_BASE_URLS.AUTH}/users/${studentId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (userResponse.ok) {
+            const student = await userResponse.json();
+            fetchedStudents.push({
+              id: student.id || student._id,
+              _id: student.id || student._id,
+              firstName: student.firstName || 'Unknown',
+              lastName: student.lastName || 'Student',
+              email: student.email || 'unknown@example.com'
+            });
+          }
+        }
+        
+        setStudents(fetchedStudents);
       }
     } catch (err) {
-      console.error('Error fetching all students:', err);
-      setError('Error fetching students: ' + err.message);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching students from auth service:', err);
     }
   };
 
@@ -476,6 +464,8 @@ const Grades = () => {
         }
       });
       
+      console.log('Auth ME API response status:', response.status);
+      
       if (response.ok) {
         const userData = await response.json();
         console.log('Current user details from auth service:', userData);
@@ -484,6 +474,12 @@ const Grades = () => {
         if (userData.id || userData._id) {
           const updatedUser = { ...user };
           updatedUser.id = userData.id || userData._id;
+          
+          // Ensure we have the correct role
+          if (userData.role) {
+            updatedUser.role = userData.role;
+          }
+          
           localStorage.setItem('user', JSON.stringify(updatedUser));
           
           console.log('Updated user in localStorage with ID:', updatedUser);
@@ -503,27 +499,83 @@ const Grades = () => {
 
   // Function to handle opening the grade dialog - ensure courses are loaded first
   const handleOpenGradeDialog = async () => {
-    // If courses are already loaded, just open the dialog
-    if (courses && courses.length > 0) {
-      setOpenGradeDialog(true);
-      return;
-    }
-    
-    // Otherwise, load courses first
+    setError(''); // Clear any previous errors
+    setOpenGradeDialog(true);
     setLoading(true);
-    console.log('Loading courses before opening grade dialog...');
     
     try {
-      await fetchCourses();
-      // Now open the dialog
-      setOpenGradeDialog(true);
+      console.log('Opening grade dialog, fetching courses');
+      
+      // Get fresh token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Your session has expired. Please login again.');
+        return;
+      }
+      
+      // Get fresh user data
+      const updatedUser = JSON.parse(localStorage.getItem('user'));
+      console.log('Current user when opening dialog:', updatedUser);
+      
+      // Direct API call to courses
+      console.log('Directly fetching courses for dialog');
+      const courseResponse = await fetch(API_BASE_URLS.COURSE, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (courseResponse.ok) {
+        const allCourses = await courseResponse.json();
+        console.log('All courses fetched for dialog:', allCourses);
+        
+        if (allCourses.length > 0) {
+          // Filter for instructor matching
+          const facultyCourses = allCourses.filter(course => {
+            // Check various ways the instructor might match
+            const matchById = course.instructorId === updatedUser.id;
+            const matchByEmail = course.instructor && 
+                                 course.instructor.email && 
+                                 course.instructor.email.toLowerCase() === updatedUser.email.toLowerCase();
+            const mongoIdMatch = course.instructorId && 
+                                 updatedUser.id && 
+                                 course.instructorId.includes(updatedUser.id);
+                                 
+            return matchById || matchByEmail || mongoIdMatch;
+          });
+          
+          console.log('Faculty courses for dialog filtered count:', facultyCourses.length);
+          
+          // Use all courses for now if no matches (for debugging)
+          if (facultyCourses.length === 0) {
+            console.log('DEBUG: No faculty courses found, showing all courses temporarily');
+            setCourses(allCourses);
+          } else {
+            setCourses(facultyCourses);
+          }
+        } else {
+          console.log('No courses available from API');
+          setCourses([]);
+        }
+      } else {
+        const errorText = await courseResponse.text();
+        console.error('Error fetching courses for dialog:', errorText);
+        setError('Failed to load courses. Server returned an error.');
+      }
     } catch (err) {
-      console.error('Failed to load courses before opening dialog:', err);
-      // Show alert if course loading fails
-      setError('Failed to load courses. Please try again.');
+      console.error('Exception during course fetch for dialog:', err);
+      setError('Error loading courses: ' + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add a function to handle dialog close
+  const handleCloseGradeDialog = () => {
+    setOpenGradeDialog(false);
+    setError(''); // Clear any errors
+    setSelectedCourse(null); // Reset selected course
+    setSelectedStudent(null); // Reset selected student
+    setScore(''); // Reset score
+    setComments(''); // Reset comments
   };
 
   useEffect(() => {
@@ -538,22 +590,43 @@ const Grades = () => {
         return;
       }
 
-      // Add more detailed logging of user data
-      console.log('Current user from localStorage:', JSON.parse(localStorage.getItem('user')));
-      console.log('User role:', user?.role);
-      console.log('User ID:', user?.id);
-      console.log('User email:', user?.email);
-
       try {
         setLoading(true);
         
+        // Grab the current user from localStorage and log it
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        console.log('Current user from localStorage on init:', storedUser);
+        
         // Try to fetch user details with ID from auth service
         const currentUser = await fetchCurrentUser();
+        console.log('Fetched current user result:', currentUser);
+        
+        // After updating user info, get it again
+        const updatedStoredUser = JSON.parse(localStorage.getItem('user'));
+        console.log('Updated user from localStorage:', updatedStoredUser);
+        
+        // Directly test the course API
+        console.log('Directly testing course API endpoint...');
+        const courseResponse = await fetch(API_BASE_URLS.COURSE, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (courseResponse.ok) {
+          const courseData = await courseResponse.json();
+          console.log('Direct course API test - received courses count:', courseData.length);
+          
+          if (courseData.length > 0) {
+            console.log('First course from direct API call:', courseData[0]);
+          }
+        } else {
+          console.error('Direct course API test failed:', await courseResponse.text());
+        }
         
         // Handle fetching based on user role
-        if (user && user.role && user.role.toLowerCase() === 'faculty') {
+        if (updatedStoredUser && updatedStoredUser.role && 
+            updatedStoredUser.role.toLowerCase() === 'faculty') {
           // For faculty users, load both courses and grades
-          console.log('Faculty user detected, fetching courses and grades...');
+          console.log('Faculty user confirmed, fetching courses and grades...');
           
           // Fetch courses first
           await fetchCourses();
@@ -570,6 +643,7 @@ const Grades = () => {
         }
       } catch (error) {
         console.error("Error during initial data fetching:", error);
+        setError("Error loading data: " + error.message);
       } finally {
         setLoading(false);
       }
@@ -591,6 +665,7 @@ const Grades = () => {
   };
 
   const handleSubmitGrade = async () => {
+    // Validate inputs
     if (!selectedCourse || !selectedStudent) {
       setError('Please select both a course and a student.');
       return;
@@ -618,10 +693,8 @@ const Grades = () => {
         studentId: selectedStudent,
         courseId: selectedCourse,
         score: numericScore,
-        comments: comments,
-        facultyId: user.id || user.email, // Use email as fallback
-        facultyEmail: user.email, // Always include email for reference
-        facultyName: `${user.firstName} ${user.lastName}` // Include name for reference
+        facultyId: user.id,
+        comments: comments
       };
       
       console.log('Submitting grade:', gradeData);
@@ -638,22 +711,16 @@ const Grades = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('Grade submitted successfully:', data);
-        setSuccess(`Grade of ${numericScore}% submitted successfully for the student.`);
-        setOpenGradeDialog(false);
+        
+        // Close the dialog
+        handleCloseGradeDialog();
+        
+        // Show success message
+        setSuccessMessage(`Grade of ${numericScore}% submitted successfully for the student.`);
+        setShowSuccess(true);
         
         // Refresh the grades list
         fetchGrades();
-        
-        // Reset the form
-        setSelectedCourse(null);
-        setSelectedStudent(null);
-        setScore('');
-        setComments('');
-        setStudents([]);
-        
-        // Show success message
-        setSuccessMessage('Grade submitted successfully!');
-        setShowSuccess(true);
         
         // Hide success message after 5 seconds
         setTimeout(() => {
@@ -676,7 +743,13 @@ const Grades = () => {
 
   const handleCourseChange = (courseId) => {
     setSelectedCourse(courseId);
-    fetchEnrolledStudents(courseId);
+    setSelectedStudent(null); // Reset selected student when course changes
+    
+    if (courseId) {
+      fetchEnrolledStudents(courseId);
+    } else {
+      setStudents([]); // Clear students if no course selected
+    }
   };
 
   const SuccessAlert = () => (
@@ -821,7 +894,7 @@ const Grades = () => {
       </Box>
 
       {/* Grade Submission Dialog */}
-      <Dialog open={openGradeDialog} onClose={() => setOpenGradeDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openGradeDialog} onClose={handleCloseGradeDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ borderBottom: '1px solid rgba(0, 0, 0, 0.12)', pb: 2 }}>
           <Typography variant="h5" component="div" fontWeight="bold">
             Submit Grade
@@ -829,6 +902,12 @@ const Grades = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
+            
             <TextField
               select
               label="Course"
@@ -839,18 +918,16 @@ const Grades = () => {
               error={!selectedCourse && Boolean(error)}
               helperText={!selectedCourse && Boolean(error) ? 'Please select a course' : ''}
             >
-              {console.log('Course dropdown rendering, courses:', courses)}
-              {courses.length === 0 ? (
+              {loading && !courses.length ? (
+                <MenuItem disabled>Loading courses...</MenuItem>
+              ) : courses.length === 0 ? (
                 <MenuItem disabled>No courses available</MenuItem>
               ) : (
-                courses.map((course) => {
-                  console.log('Rendering course:', course.code, course);
-                  return (
-                    <MenuItem key={course.id || course._id} value={course.id || course._id}>
-                      {course.code} - {course.title}
-                    </MenuItem>
-                  );
-                })
+                courses.map((course) => (
+                  <MenuItem key={course.id || course._id} value={course.id || course._id}>
+                    {course.code} - {course.title}
+                  </MenuItem>
+                ))
               )}
             </TextField>
             
@@ -865,8 +942,12 @@ const Grades = () => {
               error={selectedCourse && !selectedStudent && Boolean(error)}
               helperText={selectedCourse && !selectedStudent && Boolean(error) ? 'Please select a student' : ''}
             >
-              {students.length === 0 ? (
-                <MenuItem disabled>{selectedCourse ? 'No students enrolled' : 'Select a course first'}</MenuItem>
+              {!selectedCourse ? (
+                <MenuItem disabled>Select a course first</MenuItem>
+              ) : loading ? (
+                <MenuItem disabled>Loading students...</MenuItem>
+              ) : students.length === 0 ? (
+                <MenuItem disabled>No students enrolled in this course</MenuItem>
               ) : (
                 students.map((student) => (
                   <MenuItem key={student._id || student.id} value={student._id || student.id}>
@@ -901,7 +982,7 @@ const Grades = () => {
         </DialogContent>
         <DialogActions>
           <Button 
-            onClick={() => setOpenGradeDialog(false)}
+            onClick={handleCloseGradeDialog}
             disabled={loading}
             sx={{ 
               color: '#2e7d32',
