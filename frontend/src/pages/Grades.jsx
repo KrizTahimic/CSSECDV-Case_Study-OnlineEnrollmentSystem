@@ -313,12 +313,12 @@ const Grades = () => {
         
         console.log('Filtered faculty courses count:', facultyCourses.length);
         
-        // If no courses found with strict matching, try looser matching
-        if (facultyCourses.length === 0 && data.length > 0) {
-          console.log('No courses found with strict matching, using all courses temporarily for debugging');
-          setCourses(data);
-        } else {
-          setCourses(facultyCourses);
+        // Only set the faculty's assigned courses
+        setCourses(facultyCourses);
+        
+        // If no courses found, set appropriate message
+        if (facultyCourses.length === 0) {
+          setError('No course has been assigned to you. Please contact the administration.');
         }
       } else {
         const errorText = await response.text();
@@ -544,16 +544,17 @@ const Grades = () => {
           
           console.log('Faculty courses for dialog filtered count:', facultyCourses.length);
           
-          // Use all courses for now if no matches (for debugging)
+          // Only set the faculty's assigned courses
+          setCourses(facultyCourses);
+          
+          // Show error message if no courses are assigned to this faculty
           if (facultyCourses.length === 0) {
-            console.log('DEBUG: No faculty courses found, showing all courses temporarily');
-            setCourses(allCourses);
-          } else {
-            setCourses(facultyCourses);
+            setError('No course has been assigned to you. Please contact the administration.');
           }
         } else {
           console.log('No courses available from API');
           setCourses([]);
+          setError('No courses are available in the system.');
         }
       } else {
         const errorText = await courseResponse.text();
@@ -921,7 +922,7 @@ const Grades = () => {
               {loading && !courses.length ? (
                 <MenuItem disabled>Loading courses...</MenuItem>
               ) : courses.length === 0 ? (
-                <MenuItem disabled>No courses available</MenuItem>
+                <MenuItem disabled>No course has been assigned to you. Please contact the administration</MenuItem>
               ) : (
                 courses.map((course) => (
                   <MenuItem key={course.id || course._id} value={course.id || course._id}>
