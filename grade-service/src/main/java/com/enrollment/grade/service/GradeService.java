@@ -48,7 +48,7 @@ public class GradeService {
     }
 
     @CircuitBreaker(name = "basic")
-    public Grade updateGrade(Long id, Grade grade) {
+    public Grade updateGrade(String id, Grade grade) {
         if (gradeRepository.existsById(id)) {
             grade.setId(id);
             grade.setLetterGrade(calculateLetterGrade(grade.getScore()));
@@ -58,22 +58,19 @@ public class GradeService {
     }
 
     @CircuitBreaker(name = "basic")
-    public void deleteGrade(Long id) {
+    public void deleteGrade(String id) {
         gradeRepository.deleteById(id);
     }
 
     private String calculateLetterGrade(Double score) {
-        if (score >= 93) return "A";
-        if (score >= 90) return "A-";
-        if (score >= 87) return "B+";
-        if (score >= 83) return "B";
-        if (score >= 80) return "B-";
-        if (score >= 77) return "C+";
-        if (score >= 73) return "C";
-        if (score >= 70) return "C-";
-        if (score >= 67) return "D+";
-        if (score >= 63) return "D";
-        if (score >= 60) return "D-";
+        if (score >= 95) return "A";
+        if (score >= 89) return "A-";
+        if (score >= 83) return "B+";
+        if (score >= 78) return "B";
+        if (score >= 72) return "B-";
+        if (score >= 66) return "C+";
+        if (score >= 60) return "C";
+        if (score < 60) return "F";
         return "F";
     }
 } 

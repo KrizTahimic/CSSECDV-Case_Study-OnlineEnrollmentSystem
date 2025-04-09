@@ -32,6 +32,9 @@ const Enrollments = () => {
   const [courses, setCourses] = useState([]);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     // Redirect faculty users to dashboard
@@ -121,51 +124,61 @@ const Enrollments = () => {
     }
   };
 
-  const handleEnroll = async () => {
+  const handleEnroll = async (courseId) => {
     try {
+      setEnrollmentLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(API_BASE_URLS.ENROLLMENT, {
+      
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          courseId: selectedCourse,
-          studentId: user.email
-        })
+        body: JSON.stringify({ courseId })
       });
 
       if (response.ok) {
-        setSuccess('Successfully enrolled in the course');
-        setOpenEnrollmentDialog(false);
+        const result = await response.json();
+        console.log('Enrollment successful:', result);
+        
+        // Show success message
+        setSuccessMessage('Successfully enrolled in the course!');
+        setShowSuccess(true);
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 5000);
+        
+        // Refresh enrollments after successful enrollment
         fetchEnrollments();
-        setSelectedCourse('');
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to enroll in the course');
+        console.error('Enrollment failed:', errorData);
+        setError(errorData.error || errorData.message || 'Failed to enroll in the course. Please try again.');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Enrollment error:', err);
+      if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
+        setError('Unable to connect to the enrollment service. The service might be down or experiencing issues. Please try again later.');
+      } else {
+        setError('An unexpected error occurred during enrollment: ' + err.message);
+      }
+    } finally {
+      setEnrollmentLoading(false);
     }
   };
 
-  const handleDrop = async (courseId) => {
+  const handleUnenroll = async (courseId) => {
     try {
+      setEnrollmentLoading(true);
       const token = localStorage.getItem('token');
-      // Get user ID from the token instead of local storage
-      const tokenParts = token.split('.');
-      const payload = JSON.parse(atob(tokenParts[1]));
-      console.log('Token payload:', payload);
-      
-      const userId = payload.id;
-      console.log('Using user ID from token:', userId);
-      
-      // Log courseId to verify it's correct
-      console.log('Dropping course with ID:', courseId);
+      const userId = user.id;
       
       if (!userId) {
-        setError('User ID not found in token. Please log in again.');
+        setError('User ID not found. Please log in again.');
+        navigate('/login');
         return;
       }
       
@@ -177,18 +190,39 @@ const Enrollments = () => {
       });
 
       if (response.ok) {
-        setSuccess('Successfully dropped the course');
-        // Refresh enrollments to update the list
+        console.log('Unenrollment successful');
+        
+        // Show success message
+        setSuccessMessage('Successfully dropped the course!');
+        setShowSuccess(true);
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 5000);
+        
+        // Refresh enrollments after successful unenrollment
         fetchEnrollments();
-        // Refresh courses to update availability
-        fetchCourses();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        setError(errorData.message || 'Failed to drop the course');
+        try {
+          const errorData = await response.json();
+          console.error('Unenrollment failed:', errorData);
+          setError(errorData.error || errorData.message || 'Failed to drop the course. Please try again.');
+        } catch (e) {
+          // If the response is not JSON
+          console.error('Failed to parse error response:', e);
+          setError('Failed to drop the course. Please try again.');
+        }
       }
     } catch (err) {
-      console.error('Drop error:', err);
-      setError('Network error. Please try again.');
+      console.error('Unenrollment error:', err);
+      if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
+        setError('Unable to connect to the enrollment service. The service might be down or experiencing issues. Please try again later.');
+      } else {
+        setError('An unexpected error occurred during course drop: ' + err.message);
+      }
+    } finally {
+      setEnrollmentLoading(false);
     }
   };
 
@@ -273,7 +307,7 @@ const Enrollments = () => {
                           onClick={() => {
                             console.log("Dropping enrollment:", enrollment);
                             const courseId = enrollment.courseId || enrollment.course?._id;
-                            handleDrop(courseId);
+                            handleUnenroll(courseId);
                           }}
                         >
                           DROP

@@ -132,16 +132,18 @@ const Courses = () => {
         } else {
           setCourses(data);
         }
+        setError('');
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to fetch courses');
+        console.error('Failed to fetch courses:', errorData);
+        setError(errorData.message || 'Failed to fetch courses. Please try again later.');
       }
     } catch (err) {
       console.error('Error fetching courses:', err);
-      if (err.message.includes('Failed to fetch')) {
-        setError('Unable to connect to the course service. Please check if the service is running.');
+      if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
+        setError('Unable to connect to the course service. The service might be down or experiencing issues. Please try again later.');
       } else {
-        setError(err.message || 'An unexpected error occurred while fetching courses.');
+        setError('An unexpected error occurred: ' + err.message);
       }
     } finally {
       setLoading(false);

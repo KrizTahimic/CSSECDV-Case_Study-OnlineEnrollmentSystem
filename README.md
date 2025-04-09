@@ -190,7 +190,7 @@ The system implements fault tolerance through:
 
 ## Database
 
-Each service uses its own H2 in-memory database for development. For production, you should:
+Each service uses its own MongoDB database for data persistence. For production, you should:
 
 1. Configure external databases
 2. Implement database replication

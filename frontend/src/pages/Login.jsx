@@ -32,12 +32,14 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        console.log('Login response data:', data);
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify({
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.username,
-          role: data.role
+          id: data.user?.id || data._id || data.id,
+          firstName: data.user?.firstName || data.firstName,
+          lastName: data.user?.lastName || data.lastName,
+          email: data.user?.email || data.username || data.email,
+          role: data.user?.role || data.role
         }));
         window.dispatchEvent(new Event('authStateChanged'));
         navigate('/dashboard');

@@ -1,37 +1,32 @@
 package com.enrollment.grade.model;
 
-import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-@Table(name = "grades")
+@Document(collection = "grades")
 public class Grade {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
     private String studentId;
 
-    @Column(nullable = false)
     private String courseId;
 
-    @Column(nullable = false)
     private Double score;
 
-    @Column(nullable = false)
     private String letterGrade;
 
-    @Column(nullable = false)
     private LocalDateTime submissionDate;
 
-    @Column(nullable = false)
     private String facultyId;
+    
+    private String comments;
 
-    @PrePersist
-    protected void onCreate() {
-        submissionDate = LocalDateTime.now();
+    public Grade() {
+        this.submissionDate = LocalDateTime.now();
     }
 } 

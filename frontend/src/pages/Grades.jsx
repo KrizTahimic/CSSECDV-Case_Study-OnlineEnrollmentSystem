@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import {
   Container,
   Typography,
@@ -26,7 +28,10 @@ import {
   CardActions,
   Chip,
   Collapse,
-  IconButton
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URLS from '../config/api';
@@ -161,15 +166,29 @@ const Grades = () => {
         return;
       }
 
+      // Log user details to debug ID issues
+      console.log('User from localStorage:', user);
+      console.log('User ID:', user.id);
+      console.log('User role:', user.role);
+
       let endpoint;
-      // For students, try to use the specific endpoint
-      if (user.role.toLowerCase() === 'student' && user.id) {
-        endpoint = `${API_BASE_URLS.GRADE}/student/${user.id}`;
-        console.log('Using student grades endpoint:', endpoint);
+      // For students, use the specific endpoint with ID
+      if (user?.role?.toLowerCase() === 'student') {
+        // Check for ID in different possible locations
+        const studentId = user.id || user._id || user.userId;
+        
+        if (studentId) {
+          endpoint = `${API_BASE_URLS.GRADE}/student/${studentId}`;
+          console.log('Using student grades endpoint with ID:', endpoint);
+        } else {
+          // If no ID found, use general endpoint
+          endpoint = API_BASE_URLS.GRADE;
+          console.log('No student ID found, using general grades endpoint');
+        }
       } else {
-        // For faculty or if student ID is missing, use general endpoint
+        // For faculty or other roles, use general endpoint
         endpoint = API_BASE_URLS.GRADE;
-        console.log('Using general grades endpoint:', endpoint);
+        console.log('Using general grades endpoint for non-student role');
       }
 
       console.log('Fetching grades from endpoint:', endpoint);
@@ -183,19 +202,39 @@ const Grades = () => {
         const data = await response.json();
         console.log('Fetched grades:', data);
         
+        // First, fetch all courses for populating course details
+        const coursesResponse = await fetch(API_BASE_URLS.COURSE, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        let allCourses = [];
+        if (coursesResponse.ok) {
+          allCourses = await coursesResponse.json();
+          console.log('Fetched courses for populating grades:', allCourses);
+        }
+        
+        // Populate course details for each grade
+        const populatedGrades = data.map(grade => {
+          const course = allCourses.find(c => 
+            c.id === grade.courseId || 
+            c._id === grade.courseId
+          );
+          
+          return {
+            ...grade,
+            course: course || null, 
+            courseName: course ? `${course.code} - ${course.title}` : 'Unknown Course'
+          };
+        });
+        
         // If faculty, filter grades for courses they teach
         if (user.role === 'faculty') {
-          // Get all courses first if they haven't been loaded yet
-          if (!courses || courses.length === 0) {
-            await fetchCourses();
-          }
-          
           // Filter grades to only include those for courses taught by this faculty
-          const facultyGrades = data.filter(grade => {
+          const facultyGrades = populatedGrades.filter(grade => {
             // Get the course for this grade
-            const associatedCourse = courses.find(
-              course => course.id === grade.courseId || course._id === grade.courseId
-            );
+            const associatedCourse = grade.course;
             
             if (!associatedCourse) {
               console.log('No matching course found for grade:', grade);
@@ -218,17 +257,30 @@ const Grades = () => {
           
           console.log('Filtered faculty grades by email:', facultyGrades);
           setGrades(facultyGrades);
-        } else if (user.role === 'student' && endpoint === API_BASE_URLS.GRADE) {
-          // If student using general endpoint, filter to only show their grades
-          const studentGrades = data.filter(grade => 
-            grade.studentId === user.id || 
-            (grade.student && grade.student.email === user.email)
-          );
-          console.log('Filtered student grades:', studentGrades);
-          setGrades(studentGrades);
+        } else if (user.role === 'student') {
+          // For students, might need to filter by ID if using general endpoint
+          if (endpoint === API_BASE_URLS.GRADE) {
+            // Extract student ID from different possible locations
+            const studentId = user.id || user._id || user.userId;
+            
+            // Filter grades to only show for this student
+            const studentGrades = populatedGrades.filter(grade => 
+              grade.studentId === studentId || 
+              grade.student?._id === studentId ||
+              grade.student?.id === studentId ||
+              (grade.student && grade.student.email === user.email)
+            );
+            
+            console.log('Filtered student grades by ID/email:', studentGrades);
+            setGrades(studentGrades);
+          } else {
+            // If using student-specific endpoint, no need to filter
+            console.log('Using student-specific grades, no filtering needed');
+            setGrades(populatedGrades);
+          }
         } else {
           // For other cases, use the data as is
-          setGrades(data);
+          setGrades(populatedGrades);
         }
       } else {
         console.error('Failed to fetch grades:', await response.json());
@@ -576,6 +628,35 @@ const Grades = () => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         console.log('Current user from localStorage on init:', storedUser);
         
+        // If the user object doesn't have an ID, try to extract it from the token
+        if (storedUser && (!storedUser.id || storedUser.id === 'undefined')) {
+          try {
+            // Get the token and try to decode it
+            const token = localStorage.getItem('token');
+            if (token) {
+              // Import JWT decode for token extraction
+              const { jwtDecode } = await import('jwt-decode');
+              const decoded = jwtDecode(token);
+              console.log('Decoded token:', decoded);
+              
+              // If the token has a userId claim, update the user object
+              if (decoded.userId) {
+                const updatedUser = {
+                  ...storedUser,
+                  id: decoded.userId
+                };
+                console.log('Updating user with ID from token:', updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                
+                // Update our reference to user
+                window.dispatchEvent(new Event('authStateChanged'));
+              }
+            }
+          } catch (error) {
+            console.error('Error decoding token:', error);
+          }
+        }
+        
         // Try to fetch user details with ID from auth service
         const currentUser = await fetchCurrentUser();
         console.log('Fetched current user result:', currentUser);
@@ -752,6 +833,77 @@ const Grades = () => {
     </Collapse>
   );
 
+  // Replace the grade cards section with a table layout
+  const renderGrades = () => {
+    if (loading) {
+      return <CircularProgress />;
+    }
+
+    if (error) {
+      return (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      );
+    }
+
+    if (grades.length === 0) {
+      return (
+        <Paper sx={{ p: 3, mt: 3, textAlign: 'center', borderTop: '4px solid #2e7d32' }}>
+          <Typography variant="body1">No grades found</Typography>
+        </Paper>
+      );
+    }
+
+    return (
+      <TableContainer component={Paper} sx={{ mt: 3, borderTop: '4px solid #2e7d32' }}>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableCell><strong>Course</strong></TableCell>
+              <TableCell><strong>Grade (GPA)</strong></TableCell>
+              <TableCell><strong>Score</strong></TableCell>
+              <TableCell><strong>Comments</strong></TableCell>
+              <TableCell><strong>Submission Date</strong></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {grades.map((grade) => {
+              const course = grade.course || {};
+              const scoreValue = parseFloat(grade.score) || 0;
+              const gpaValue = getGpaFromScore(scoreValue);
+              
+              return (
+                <TableRow key={grade.id || grade._id}>
+                  <TableCell>
+                    {course.code ? `${course.code} - ${course.title || ''}` : grade.courseName || 'Unknown Course'}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={gpaValue.toFixed(1)}
+                      sx={{
+                        bgcolor: getGradeColor(gpaValue),
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>{scoreValue.toFixed(1)}%</TableCell>
+                  <TableCell>{grade.comments || '-'}</TableCell>
+                  <TableCell>
+                    {grade.submissionDate 
+                      ? new Date(grade.submissionDate).toLocaleDateString() 
+                      : '-'}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
   if (loading) {
     return (
       <Container>
@@ -805,71 +957,7 @@ const Grades = () => {
           </Box>
         )}
 
-        <Grid container spacing={3}>
-          {grades.length === 0 ? (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 3, textAlign: 'center', borderTop: '4px solid #2e7d32' }}>
-                <Typography variant="body1">
-                  No grades found
-                </Typography>
-              </Paper>
-            </Grid>
-          ) : (
-            grades.map((grade) => (
-              <Grid item xs={12} sm={6} md={4} key={grade._id}>
-                <Card sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  overflow: 'visible',
-                  borderTop: '4px solid',
-                  borderColor: getGradeColor(grade.grade || 0)
-                }}>
-                  <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6" component="div">
-                        {grade.course?.code}
-                      </Typography>
-                      <Chip 
-                        label={grade.grade?.toFixed(1)} 
-                        sx={{ 
-                          bgcolor: getGradeColor(grade.grade || 0),
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }}
-                      />
-                    </Box>
-                    <Typography variant="body1" gutterBottom>
-                      <strong>{grade.course?.title}</strong>
-                    </Typography>
-                    
-                    {user.role === 'faculty' && (
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        <strong>Student:</strong> {grade.student?.firstName} {grade.student?.lastName}
-                      </Typography>
-                    )}
-                    
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Score:</strong> {grade.score?.toFixed(1)}%
-                    </Typography>
-                    
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Grade:</strong> {grade.grade?.toFixed(1)}
-                    </Typography>
-                    
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Comments:</strong> {grade.comments || 'No comments'}
-                    </Typography>
-                    
-                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                      <strong>Submitted:</strong> {new Date(grade.submittedAt).toLocaleDateString()}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))
-          )}
-        </Grid>
+        {renderGrades()}
       </Box>
 
       {/* Grade Submission Dialog */}
@@ -880,7 +968,7 @@ const Grades = () => {
           </Typography>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <Box component="form" sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
               <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>
                 {error}
@@ -897,14 +985,14 @@ const Grades = () => {
               error={!selectedCourse && Boolean(error)}
               helperText={!selectedCourse && Boolean(error) ? 'Please select a course' : ''}
             >
-              {loading && !courses.length ? (
+              {loading ? (
                 <MenuItem disabled>Loading courses...</MenuItem>
               ) : courses.length === 0 ? (
-                <MenuItem disabled>No course has been assigned to you. Please contact the administration</MenuItem>
+                <MenuItem disabled>No courses available</MenuItem>
               ) : (
                 courses.map((course) => (
-                  <MenuItem key={course.id || course._id} value={course.id || course._id}>
-                    {course.code} - {course.title}
+                  <MenuItem key={course._id || course.id} value={course._id || course.id}>
+                    {course.code || 'No Code'} - {course.title || 'Untitled'}
                   </MenuItem>
                 ))
               )}

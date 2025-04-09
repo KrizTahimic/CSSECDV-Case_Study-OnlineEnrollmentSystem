@@ -54,7 +54,7 @@ public class GradeController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Grade> updateGrade(@PathVariable Long id, @RequestBody Grade grade) {
+    public ResponseEntity<Grade> updateGrade(@PathVariable String id, @RequestBody Grade grade) {
         try {
             return ResponseEntity.ok(gradeService.updateGrade(id, grade));
         } catch (RuntimeException e) {
@@ -63,7 +63,7 @@ public class GradeController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteGrade(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteGrade(@PathVariable String id) {
         gradeService.deleteGrade(id);
         return ResponseEntity.ok().build();
     }

@@ -67,12 +67,14 @@ const Register = () => {
         const loginData = await loginResponse.json();
 
         if (loginResponse.ok) {
+          console.log('Login response after registration:', loginData);
           localStorage.setItem('token', loginData.token);
           localStorage.setItem('user', JSON.stringify({
-            firstName: loginData.firstName,
-            lastName: loginData.lastName,
-            email: loginData.username,
-            role: loginData.role
+            id: loginData.user?.id || loginData._id || loginData.id,
+            firstName: loginData.user?.firstName || loginData.firstName,
+            lastName: loginData.user?.lastName || loginData.lastName,
+            email: loginData.user?.email || loginData.username || loginData.email,
+            role: loginData.user?.role || loginData.role
           }));
           // Dispatch the authStateChanged event
           window.dispatchEvent(new Event('authStateChanged'));

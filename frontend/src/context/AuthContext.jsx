@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import jwt_decode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import API_BASE_URLS from '../config/api';
 
 const AuthContext = createContext(null);
@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const decoded = jwt_decode(token);
+        const decoded = jwtDecode(token);
         if (decoded.exp * 1000 < Date.now()) {
           localStorage.removeItem('token');
         } else {
