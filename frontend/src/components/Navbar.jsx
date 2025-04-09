@@ -58,7 +58,22 @@ const Navbar = () => {
     <AppBar position="static" sx={{ bgcolor: '#2e7d32' }}>
       <Container maxWidth="lg">
         <Toolbar sx={{ minHeight: '48px' }}>
-          <Typography variant="h6" component={RouterLink} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
+          <Typography variant="h6" component={RouterLink} to="/" sx={{ 
+            flexGrow: 1, 
+            textDecoration: 'none', 
+            color: 'inherit',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <img 
+              src="/logo.png" 
+              alt="AnimoSheesh Logo" 
+              style={{ 
+                height: '64px', 
+                marginRight: '10px',
+                verticalAlign: 'middle'
+              }} 
+            />
             AnimoSheesh!
           </Typography>
           <Box sx={{ 

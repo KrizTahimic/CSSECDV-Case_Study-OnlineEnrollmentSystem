@@ -44,9 +44,20 @@ const Dashboard = () => {
   return (
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-          Dashboard
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <img 
+            src="/logo.png" 
+            alt="AnimoSheesh Logo" 
+            style={{ 
+              height: '40px', 
+              marginRight: '12px',
+              verticalAlign: 'middle'
+            }} 
+          />
+          <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{ ml: 1 }}>
+            Dashboard
+          </Typography>
+        </Box>
         <Typography variant="h5" gutterBottom sx={{ color: '#2e7d32', mb: 3 }}>
           Welcome, {user.firstName || 'Professor'} {user.lastName || 'X'}!
         </Typography>
