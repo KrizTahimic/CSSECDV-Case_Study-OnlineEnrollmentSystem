@@ -354,100 +354,78 @@ const Grades = () => {
         const data = await response.json();
         console.log('Enrollment data received:', data);
         
-        // Process the enrollment data to extract student information
-        const enrolledStudents = data
-          .filter(enrollment => enrollment.status === 'enrolled') // Only include active enrollments
-          .map(enrollment => {
-            // Extract student details from enrollment
-            if (enrollment.student) {
-              return {
-                id: enrollment.studentId,
-                _id: enrollment.studentId,
-                firstName: enrollment.student.firstName,
-                lastName: enrollment.student.lastName,
-                email: enrollment.student.email
-              };
-            }
-            return {
-              id: enrollment.studentId,
-              _id: enrollment.studentId,
-              firstName: 'Unknown',
-              lastName: 'Student',
-              email: enrollment.studentEmail || 'unknown@example.com'
-            };
-          });
-        
-        console.log('Processed student data for grading:', enrolledStudents);
-        
-        if (enrolledStudents.length === 0) {
-          // If no students found through enrollment service, try fetching from auth service
-          await fetchStudentsFromAuth(courseId);
-        } else {
-          setStudents(enrolledStudents);
-        }
-      } else {
-        console.error('Failed to fetch enrollments:', await response.text());
-        // Try fetching from auth service as fallback
-        await fetchStudentsFromAuth(courseId);
-      }
-    } catch (err) {
-      console.error('Error fetching enrolled students:', err);
-      // Try fetching from auth service as fallback
-      await fetchStudentsFromAuth(courseId);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Add a new function to fetch students from auth service as a fallback
-  const fetchStudentsFromAuth = async (courseId) => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      // First get all enrollments for this course
-      const enrollmentResponse = await fetch(`${API_BASE_URLS.ENROLLMENT}/course/${courseId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (enrollmentResponse.ok) {
-        const enrollments = await enrollmentResponse.json();
-        const studentIds = enrollments
-          .filter(enrollment => enrollment.status === 'enrolled')
-          .map(enrollment => enrollment.studentId);
-        
-        if (studentIds.length === 0) {
-          console.log('No enrollments found for this course');
+        if (!data || data.length === 0) {
+          console.log('No enrollment data found for this course');
+          setError('No students are enrolled in this course.');
+          setLoading(false);
           return;
         }
         
-        // Then fetch user details for each student
-        const fetchedStudents = [];
+        // Process the enrollment data to extract student information
+        const enrolledStudents = [];
+        const fetchPromises = [];
         
-        for (const studentId of studentIds) {
-          const userResponse = await fetch(`${API_BASE_URLS.AUTH}/users/${studentId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+        // First filter for enrolled status
+        const enrollments = data.filter(enrollment => enrollment.status === 'enrolled');
+        console.log('Filtered enrolled students:', enrollments.length);
+        
+        // For each enrollment, fetch the complete student data from auth service
+        for (const enrollment of enrollments) {
+          const studentId = enrollment.studentId;
+          if (!studentId) continue;
           
-          if (userResponse.ok) {
-            const student = await userResponse.json();
-            fetchedStudents.push({
-              id: student.id || student._id,
-              _id: student.id || student._id,
-              firstName: student.firstName || 'Unknown',
-              lastName: student.lastName || 'Student',
-              email: student.email || 'unknown@example.com'
-            });
-          }
+          console.log('Fetching student details for:', studentId);
+          fetchPromises.push(
+            fetch(`${API_BASE_URLS.AUTH}/users/${studentId}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => {
+              if (res.ok) return res.json();
+              console.error('Failed to fetch student details:', studentId);
+              return null;
+            })
+            .then(studentData => {
+              if (studentData) {
+                // Add to students array only if studentData was found
+                enrolledStudents.push({
+                  id: studentData.id || studentData._id || studentId,
+                  _id: studentData.id || studentData._id || studentId,
+                  firstName: studentData.firstName || 'Unknown',
+                  lastName: studentData.lastName || 'Unknown',
+                  email: studentData.email || 'unknown@example.com',
+                  enrollmentDate: enrollment.enrollmentDate
+                });
+              }
+            })
+            .catch(err => console.error('Error fetching student data:', err))
+          );
         }
         
-        setStudents(fetchedStudents);
+        // Wait for all student data to be fetched
+        await Promise.all(fetchPromises);
+        
+        console.log('Final processed student data:', enrolledStudents);
+        
+        if (enrolledStudents.length === 0) {
+          console.log('No enrolled students found with details');
+          setError('No students with complete information are enrolled in this course.');
+        } else {
+          // Sort students by name for easier selection
+          enrolledStudents.sort((a, b) => 
+            `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`)
+          );
+          setStudents(enrolledStudents);
+          setError(''); // Clear any previous errors
+        }
+      } else {
+        console.error('Failed to fetch enrollments:', await response.text());
+        setError('Failed to fetch enrolled students. Please try again.');
       }
     } catch (err) {
-      console.error('Error fetching students from auth service:', err);
+      console.error('Error fetching enrolled students:', err);
+      setError('Error loading enrolled students: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -948,7 +926,7 @@ const Grades = () => {
               ) : loading ? (
                 <MenuItem disabled>Loading students...</MenuItem>
               ) : students.length === 0 ? (
-                <MenuItem disabled>No students enrolled in this course</MenuItem>
+                <MenuItem disabled>No students are currently enrolled in this course</MenuItem>
               ) : (
                 students.map((student) => (
                   <MenuItem key={student._id || student.id} value={student._id || student.id}>
