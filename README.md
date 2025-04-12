@@ -2,6 +2,8 @@
 
 A demonstration project showcasing distributed systems and fault tolerance concepts implemented using Java Spring Boot microservices architecture and a React frontend. This project is not intended for production use but serves as an educational example of microservices communication, fault tolerance patterns, and distributed system design.
 
+* NOTE: This repository is used for hosting it locally. In the video demo, we made a modified copy to be a client.
+
 ## Educational Purpose
 
 This system demonstrates several key concepts in distributed systems:
