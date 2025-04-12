@@ -148,7 +148,7 @@ The system consists of the following nodes:
    f. Start the Frontend:
    ```bash
    cd frontend
-   npm run dev
+   npm start
    ```
 
 ## Verifying the Services
