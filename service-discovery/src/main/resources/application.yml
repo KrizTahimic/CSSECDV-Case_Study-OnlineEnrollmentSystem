@@ -10,4 +10,16 @@ eureka:
     register-with-eureka: false
     fetch-registry: false
   server:
-    wait-time-in-ms-when-sync-empty: 0 
+    wait-time-in-ms-when-sync-empty: 0
+    # Enable self-preservation mode (set to false to be more aggressive)
+    enable-self-preservation: false
+    # Reduce the renewal threshold to be more sensitive to service failures
+    renewal-threshold-update-interval-ms: 15000
+    # Reduce the eviction interval to check more frequently
+    eviction-interval-timer-in-ms: 10000
+    # Reduce the response cache update interval
+    response-cache-update-interval-ms: 30000
+    # Set the lease expiration duration
+    lease-expiration-duration-in-seconds: 5
+    # Set the lease renewal interval
+    lease-renewal-interval-in-seconds: 2 
