@@ -22,25 +22,25 @@ The system consists of the following nodes:
    - Displays which services are currently running
 
 2. **Authentication Service**
-   - Port: 8081
+   - Port: 3001
    - Handles user authentication and authorization
    - JWT-based authentication
    - User registration and login
 
 3. **Course Service**
-   - Port: 8082
+   - Port: 3002
    - Manages course information
    - Handles course enrollment capacity
    - Course CRUD operations
 
 4. **Enrollment Service**
-   - Port: 8083
+   - Port: 3003
    - Manages student course enrollments
    - Communicates with Course Service for enrollment validation
    - Handles enrollment and unenrollment operations
 
 5. **Grade Service**
-   - Port: 8084
+   - Port: 3004
    - Manages student grades
    - Faculty grade submission
    - Grade calculation and conversion
@@ -49,15 +49,16 @@ The system consists of the following nodes:
    - Port: 3000
    - Provides user interface for all system features
    - Integrates with all backend services
+   - Built with Vite for optimal development experience
 
 ## Features
 
 - User authentication and authorization (JWT)
-- Role-based access control (Student, Faculty, Admin)
+- Role-based access control (Student, Faculty)
 - Course management
 - Student enrollment and course dropping
 - Grade management and submission
-- Fault tolerance with circuit breakers
+- Fault tolerance with circuit breakers (Resilience4j)
 - Service discovery and load balancing
 - Responsive UI with Material-UI components
 
@@ -73,8 +74,8 @@ The system consists of the following nodes:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/AnimoSheesh.git
-   cd AnimoSheesh
+   git clone https://github.com/CedricAlejo21/OnlineEnrollmentSystem-P4.git
+   cd *insert-downloaded-repo-directory*
    ```
 
 2. Install dependencies for each service:
