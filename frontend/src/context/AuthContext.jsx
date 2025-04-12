@@ -26,10 +26,17 @@ export const AuthProvider = ({ children }) => {
         if (decoded.exp * 1000 < Date.now()) {
           localStorage.removeItem('token');
         } else {
-          setUser(decoded);
+          // Get user data from localStorage
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            setUser(JSON.parse(userData));
+          } else {
+            setUser(decoded);
+          }
         }
       } catch (error) {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
     setLoading(false);
@@ -43,10 +50,11 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      const { token, user } = response.data;
+      const { token, ...userData } = response.data;
       localStorage.setItem('token', token);
-      setUser(user);
-      return user;
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      return userData;
     } catch (error) {
       setError(error.response?.data?.message || 'Login failed');
       throw error;
@@ -57,10 +65,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await axios.post(`${API_BASE_URLS.AUTH}/register`, userData);
-      const { token, user } = response.data;
+      const { token, ...userData } = response.data;
       localStorage.setItem('token', token);
-      setUser(user);
-      return user;
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      return userData;
     } catch (error) {
       setError(error.response?.data?.message || 'Registration failed');
       throw error;
@@ -69,6 +78,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 

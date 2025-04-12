@@ -1,5 +1,6 @@
 server:
   port: 3001
+  address: 0.0.0.0  # Bind to all network interfaces
 
 spring:
   application:
@@ -9,21 +10,34 @@ spring:
       host: localhost
       port: 27017
       database: auth_service
+  mvc:
+    cors:
+      mapping: "/**"
+      allowed-origins: 
+        - http://localhost:3000
+        - http://192.168.188.100:3000
+        - http://127.0.0.1:3000
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+      exposed-headers: Authorization
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://192.168.188.100:8761/eureka/
     registry-fetch-interval-seconds: 5
-    instance:
-      lease-renewal-interval-in-seconds: 5
-      lease-expiration-duration-in-seconds: 15
-      prefer-ip-address: true
-      health-check-url-path: /actuator/health
-      status-page-url-path: /actuator/info
-      initial-status: starting
-      metadata-map:
-        startup: ${random.int}
+  instance:
+    preferIpAddress: true
+    ip-address: 192.168.188.100
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+    health-check-url-path: /actuator/health
+    status-page-url-path: /actuator/info
+    initial-status: starting
+    metadata-map:
+      startup: ${random.int}
 
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970

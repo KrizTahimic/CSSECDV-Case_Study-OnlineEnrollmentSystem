@@ -79,7 +79,8 @@ const Enrollments = () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}`, {
+      // Use email instead of ID for fetching enrollments
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${user.email}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -128,6 +129,7 @@ const Enrollments = () => {
     try {
       setEnrollmentLoading(true);
       const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
       
       const response = await fetch(`${API_BASE_URLS.ENROLLMENT}`, {
         method: 'POST',
@@ -135,7 +137,10 @@ const Enrollments = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ courseId })
+        body: JSON.stringify({ 
+          courseId,
+          studentEmail: user.email 
+        })
       });
 
       if (response.ok) {
@@ -174,15 +179,15 @@ const Enrollments = () => {
     try {
       setEnrollmentLoading(true);
       const token = localStorage.getItem('token');
-      const userId = user.id;
+      const user = JSON.parse(localStorage.getItem('user'));
       
-      if (!userId) {
-        setError('User ID not found. Please log in again.');
+      if (!user.email) {
+        setError('User email not found. Please log in again.');
         navigate('/login');
         return;
       }
       
-      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${userId}/course/${courseId}`, {
+      const response = await fetch(`${API_BASE_URLS.ENROLLMENT}/student/${user.email}/course/${courseId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -274,7 +279,6 @@ const Enrollments = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Course</TableCell>
-                <TableCell>Instructor</TableCell>
                 <TableCell>Enrollment Date</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
@@ -286,11 +290,6 @@ const Enrollments = () => {
                   <TableRow key={enrollment.id}>
                     <TableCell>
                       {enrollment.course?.code} - {enrollment.course?.title}
-                    </TableCell>
-                    <TableCell>
-                      {enrollment.course?.instructor ? 
-                        `${enrollment.course.instructor.firstName} ${enrollment.course.instructor.lastName}` 
-                        : 'Unknown Instructor'}
                     </TableCell>
                     <TableCell>
                       {new Date(enrollment.enrollmentDate).toLocaleDateString()}
@@ -318,7 +317,7 @@ const Enrollments = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={4} align="center">
                     You are not enrolled in any courses yet.
                   </TableCell>
                 </TableRow>

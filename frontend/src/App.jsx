@@ -11,6 +11,8 @@ import Courses from './pages/Courses.jsx';
 import AddCourse from './pages/AddCourse.jsx';
 import Enrollments from './pages/Enrollments.jsx';
 import Grades from './pages/Grades.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 
 const theme = createTheme({
   palette: {
@@ -29,20 +31,22 @@ const theme = createTheme({
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/add-course" element={<AddCourse />} />
-        <Route path="/enrollments" element={<Enrollments />} />
-        <Route path="/grades" element={<Grades />} />
-      </Routes>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/courses" element={<PrivateRoute><Courses /></PrivateRoute>} />
+          <Route path="/add-course" element={<PrivateRoute roles={['admin']}><AddCourse /></PrivateRoute>} />
+          <Route path="/enrollments" element={<PrivateRoute roles={['student']}><Enrollments /></PrivateRoute>} />
+          <Route path="/grades" element={<PrivateRoute><Grades /></PrivateRoute>} />
+        </Routes>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

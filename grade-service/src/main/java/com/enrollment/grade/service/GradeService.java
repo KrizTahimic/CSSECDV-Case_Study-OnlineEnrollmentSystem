@@ -21,8 +21,8 @@ public class GradeService {
     }
 
     @CircuitBreaker(name = "basic")
-    public List<Grade> getStudentGrades(String studentId) {
-        return gradeRepository.findByStudentId(studentId);
+    public List<Grade> getStudentGrades(String studentEmail) {
+        return gradeRepository.findByStudentEmail(studentEmail);
     }
 
     @CircuitBreaker(name = "basic")
@@ -31,8 +31,8 @@ public class GradeService {
     }
 
     @CircuitBreaker(name = "basic")
-    public Optional<Grade> getStudentCourseGrade(String studentId, String courseId) {
-        return gradeRepository.findByStudentIdAndCourseId(studentId, courseId);
+    public Optional<Grade> getStudentCourseGrade(String studentEmail, String courseId) {
+        return gradeRepository.findByStudentEmailAndCourseId(studentEmail, courseId);
     }
 
     @CircuitBreaker(name = "basic")

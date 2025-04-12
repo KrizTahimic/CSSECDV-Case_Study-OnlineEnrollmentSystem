@@ -1,51 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Container, Typography, Box, TextField, Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import API_BASE_URLS from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      navigate('/dashboard');
-    }
-  }, [navigate]);
+  const { login, user } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URLS.AUTH}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('Login response data:', data);
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify({
-          id: data.user?.id || data._id || data.id,
-          firstName: data.user?.firstName || data.firstName,
-          lastName: data.user?.lastName || data.lastName,
-          email: data.user?.email || data.username || data.email,
-          role: data.user?.role || data.role
-        }));
-        window.dispatchEvent(new Event('authStateChanged'));
-        navigate('/dashboard');
-      } else {
-        setError(data.message || 'Login failed. Please check your credentials and try again.');
-      }
+      await login(email, password);
+      navigate('/dashboard');
     } catch (err) {
       if (err.message.includes('Failed to fetch')) {
         setError('Unable to connect to the authentication service. Please check if the service is running.');

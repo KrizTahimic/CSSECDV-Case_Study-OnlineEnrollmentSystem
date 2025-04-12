@@ -9,4 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface AuthClient {
     @GetMapping("/api/auth/users/{id}")
     Instructor getInstructor(@PathVariable String id);
+
+    @GetMapping("/api/auth/users")
+    java.util.List<Instructor> getInstructors();
 } 

@@ -51,11 +51,53 @@ public class CourseService {
     private Course populateInstructorDetails(Course course) {
         try {
             if (course.getInstructorId() != null) {
-                Instructor instructor = authClient.getInstructor(course.getInstructorId());
-                course.setInstructor(instructor);
+                System.out.println("Fetching instructor details for course " + course.getCode() + " with instructorId: " + course.getInstructorId());
+                
+                try {
+                    // First try to get instructor by ID
+                    Instructor instructor = authClient.getInstructor(course.getInstructorId());
+                    
+                    if (instructor != null && instructor.getFirstName() != null && instructor.getLastName() != null) {
+                        System.out.println("Successfully fetched instructor by ID: " + instructor.getFirstName() + " " + instructor.getLastName());
+                        course.setInstructor(instructor);
+                        return course;
+                    }
+                } catch (Exception e) {
+                    System.out.println("Failed to fetch instructor by ID: " + e.getMessage());
+                }
+                
+                // If not found by ID, try to find in the list of all instructors
+                System.out.println("Instructor not found by ID, trying to find in all instructors list");
+                List<Instructor> instructors = authClient.getInstructors();
+                if (instructors != null) {
+                    System.out.println("Found " + instructors.size() + " instructors");
+                    for (Instructor i : instructors) {
+                        System.out.println("Checking instructor: " + i.getFirstName() + " " + i.getLastName() + 
+                                         " (ID: " + i.getId() + ", Email: " + i.getEmail() + ")");
+                        
+                        // Try multiple ways to match the instructor
+                        boolean idMatch = i.getId() != null && i.getId().equals(course.getInstructorId());
+                        boolean emailMatch = i.getEmail() != null && i.getEmail().equals(course.getInstructorId());
+                        boolean nameMatch = i.getFirstName() != null && i.getLastName() != null && 
+                                         (i.getFirstName() + " " + i.getLastName()).equals(course.getInstructorId());
+                        
+                        if (idMatch || emailMatch || nameMatch) {
+                            System.out.println("Found matching instructor: " + i.getFirstName() + " " + i.getLastName() + 
+                                             " (matched by: " + (idMatch ? "ID" : emailMatch ? "email" : "name") + ")");
+                            course.setInstructor(i);
+                            return course;
+                        }
+                    }
+                }
+                
+                System.err.println("Could not find instructor details for course " + course.getCode() + 
+                    " with instructorId: " + course.getInstructorId());
+            } else {
+                System.err.println("No instructorId found for course " + course.getCode());
             }
         } catch (Exception e) {
             System.err.println("Error fetching instructor details for course " + course.getCode() + ": " + e.getMessage());
+            e.printStackTrace();
         }
         return course;
     }

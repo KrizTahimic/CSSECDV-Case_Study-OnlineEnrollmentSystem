@@ -172,18 +172,18 @@ const Grades = () => {
       console.log('User role:', user.role);
 
       let endpoint;
-      // For students, use the specific endpoint with ID
+      // For students, use the specific endpoint with email
       if (user?.role?.toLowerCase() === 'student') {
-        // Check for ID in different possible locations
-        const studentId = user.id || user._id || user.userId;
+        // Use email instead of ID
+        const studentEmail = user.email;
         
-        if (studentId) {
-          endpoint = `${API_BASE_URLS.GRADE}/student/${studentId}`;
-          console.log('Using student grades endpoint with ID:', endpoint);
+        if (studentEmail) {
+          endpoint = `${API_BASE_URLS.GRADE}/student/${studentEmail}`;
+          console.log('Using student grades endpoint with email:', endpoint);
         } else {
-          // If no ID found, use general endpoint
+          // If no email found, use general endpoint
           endpoint = API_BASE_URLS.GRADE;
-          console.log('No student ID found, using general grades endpoint');
+          console.log('No student email found, using general grades endpoint');
         }
       } else {
         // For faculty or other roles, use general endpoint
@@ -215,71 +215,56 @@ const Grades = () => {
           console.log('Fetched courses for populating grades:', allCourses);
         }
         
-        // Populate course details for each grade
-        const populatedGrades = data.map(grade => {
+        // Populate course details and student information for each grade
+        const populatedGrades = await Promise.all(data.map(async grade => {
           const course = allCourses.find(c => 
             c.id === grade.courseId || 
             c._id === grade.courseId
           );
           
+          // Fetch student details if user is faculty
+          let student = null;
+          if (user.role && user.role.toLowerCase() === 'faculty' && grade.studentEmail) {
+            try {
+              const studentResponse = await fetch(`${API_BASE_URLS.AUTH}/users/email/${encodeURIComponent(grade.studentEmail)}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (studentResponse.ok) {
+                student = await studentResponse.json();
+                console.log('Fetched student details:', student);
+              } else {
+                console.error('Failed to fetch student details:', await studentResponse.text());
+              }
+            } catch (err) {
+              console.error('Error fetching student details:', err);
+            }
+          }
+          
           return {
             ...grade,
             course: course || null, 
-            courseName: course ? `${course.code} - ${course.title}` : 'Unknown Course'
+            courseName: course ? `${course.code} - ${course.title}` : 'Unknown Course',
+            student: student
           };
-        });
+        }));
         
         // If faculty, filter grades for courses they teach
-        if (user.role === 'faculty') {
-          // Filter grades to only include those for courses taught by this faculty
+        if (user.role && user.role.toLowerCase() === 'faculty') {
           const facultyGrades = populatedGrades.filter(grade => {
-            // Get the course for this grade
-            const associatedCourse = grade.course;
+            const course = grade.course;
+            if (!course) return false;
             
-            if (!associatedCourse) {
-              console.log('No matching course found for grade:', grade);
-              return false;
-            }
-            
-            console.log('Checking grade for course:', associatedCourse.code, 'instructor:', associatedCourse.instructor?.email);
-            
-            // Match if user is the instructor of this course
-            const isInstructor = associatedCourse.instructor && 
-                   associatedCourse.instructor.email && 
-                   associatedCourse.instructor.email.toLowerCase() === user.email.toLowerCase();
-                   
-            if (isInstructor) {
-              console.log('✓ This faculty teaches this course:', associatedCourse.code);
-            }
-            
-            return isInstructor;
+            // Check if the faculty member is the instructor of this course
+            return course.instructorId === user.id || 
+                   (course.instructor && course.instructor.email === user.email);
           });
           
-          console.log('Filtered faculty grades by email:', facultyGrades);
+          console.log('Filtered faculty grades:', facultyGrades);
           setGrades(facultyGrades);
-        } else if (user.role === 'student') {
-          // For students, might need to filter by ID if using general endpoint
-          if (endpoint === API_BASE_URLS.GRADE) {
-            // Extract student ID from different possible locations
-            const studentId = user.id || user._id || user.userId;
-            
-            // Filter grades to only show for this student
-            const studentGrades = populatedGrades.filter(grade => 
-              grade.studentId === studentId || 
-              grade.student?._id === studentId ||
-              grade.student?.id === studentId ||
-              (grade.student && grade.student.email === user.email)
-            );
-            
-            console.log('Filtered student grades by ID/email:', studentGrades);
-            setGrades(studentGrades);
-          } else {
-            // If using student-specific endpoint, no need to filter
-            console.log('Using student-specific grades, no filtering needed');
-            setGrades(populatedGrades);
-          }
         } else {
-          // For other cases, use the data as is
           setGrades(populatedGrades);
         }
       } else {
@@ -413,69 +398,91 @@ const Grades = () => {
           return;
         }
         
-        // Process the enrollment data to extract student information
-        const enrolledStudents = [];
-        const fetchPromises = [];
-        
         // First filter for enrolled status
         const enrollments = data.filter(enrollment => enrollment.status === 'enrolled');
         console.log('Filtered enrolled students:', enrollments.length);
         
+        if (enrollments.length === 0) {
+          setError('No active enrollments found for this course');
+          setLoading(false);
+          return;
+        }
+
+        // Process the enrollment data to extract student information
+        const enrolledStudents = [];
+        
         // For each enrollment, fetch the complete student data from auth service
         for (const enrollment of enrollments) {
-          const studentId = enrollment.studentId;
-          if (!studentId) continue;
+          console.log('Processing enrollment:', enrollment);
           
-          console.log('Fetching student details for:', studentId);
-          fetchPromises.push(
-            fetch(`${API_BASE_URLS.AUTH}/users/${studentId}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            })
-            .then(res => {
-              if (res.ok) return res.json();
-              console.error('Failed to fetch student details:', studentId);
-              return null;
-            })
-            .then(studentData => {
-              if (studentData) {
-                // Add to students array only if studentData was found
+          // Try to get student email from enrollment or use studentId if it's an email
+          const studentEmail = enrollment.studentEmail || 
+                             (enrollment.studentId && enrollment.studentId.includes('@') ? enrollment.studentId : null);
+          
+          if (studentEmail) {
+            try {
+              const studentResponse = await fetch(`${API_BASE_URLS.AUTH}/users/email/${encodeURIComponent(studentEmail)}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (studentResponse.ok) {
+                const studentData = await studentResponse.json();
+                console.log('Fetched student data:', studentData);
+                
+                // Add the student to our list with enrollment ID
                 enrolledStudents.push({
-                  id: studentData.id || studentData._id || studentId,
-                  _id: studentData.id || studentData._id || studentId,
+                  id: studentData.email, // Use email as ID since that's what we need for grade submission
+                  email: studentData.email,
                   firstName: studentData.firstName || 'Unknown',
-                  lastName: studentData.lastName || 'Unknown',
-                  email: studentData.email || 'unknown@example.com',
-                  enrollmentDate: enrollment.enrollmentDate
+                  lastName: studentData.lastName || 'Student',
+                  enrollmentId: enrollment.id
+                });
+              } else {
+                console.error('Failed to fetch student details:', await studentResponse.text());
+                // Add a placeholder for the student
+                enrolledStudents.push({
+                  id: studentEmail,
+                  email: studentEmail,
+                  firstName: 'Unknown',
+                  lastName: 'Student',
+                  enrollmentId: enrollment.id,
+                  error: true
                 });
               }
-            })
-            .catch(err => console.error('Error fetching student data:', err))
-          );
+            } catch (err) {
+              console.error('Error fetching student data:', err);
+              // Add a placeholder for the student
+              enrolledStudents.push({
+                id: studentEmail,
+                email: studentEmail,
+                firstName: 'Unknown',
+                lastName: 'Student',
+                enrollmentId: enrollment.id,
+                error: true
+              });
+            }
+          }
         }
         
-        // Wait for all student data to be fetched
-        await Promise.all(fetchPromises);
-        
-        console.log('Final processed student data:', enrolledStudents);
+        console.log('Final enrolled students list:', enrolledStudents);
         
         if (enrolledStudents.length === 0) {
-          console.log('No enrolled students found with details');
-          setError('No students with complete information are enrolled in this course.');
-        } else {
-          // Sort students by name for easier selection
-          enrolledStudents.sort((a, b) => 
-            `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`)
-          );
-          setStudents(enrolledStudents);
-          setError(''); // Clear any previous errors
+          setError('No enrolled students found with details');
+          setLoading(false);
+          return;
         }
+        
+        setStudents(enrolledStudents);
       } else {
-        console.error('Failed to fetch enrollments:', await response.text());
-        setError('Failed to fetch enrolled students. Please try again.');
+        const errorData = await response.json();
+        console.error('Error fetching enrollments:', errorData);
+        setError(errorData.message || 'Failed to fetch enrolled students');
       }
     } catch (err) {
-      console.error('Error fetching enrolled students:', err);
-      setError('Error loading enrolled students: ' + err.message);
+      console.error('Error in fetchEnrolledStudents:', err);
+      setError('Error fetching enrolled students: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -750,7 +757,7 @@ const Grades = () => {
       
       // Create the grade submission payload
       const gradeData = {
-        studentId: selectedStudent,
+        studentEmail: selectedStudent,
         courseId: selectedCourse,
         score: numericScore,
         facultyId: user.id,
@@ -861,6 +868,9 @@ const Grades = () => {
           <TableHead>
             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
               <TableCell><strong>Course</strong></TableCell>
+              {user.role && user.role.toLowerCase() === 'faculty' && (
+                <TableCell><strong>Student</strong></TableCell>
+              )}
               <TableCell><strong>Grade (GPA)</strong></TableCell>
               <TableCell><strong>Score</strong></TableCell>
               <TableCell><strong>Comments</strong></TableCell>
@@ -878,6 +888,15 @@ const Grades = () => {
                   <TableCell>
                     {course.code ? `${course.code} - ${course.title || ''}` : grade.courseName || 'Unknown Course'}
                   </TableCell>
+                  {user.role && user.role.toLowerCase() === 'faculty' && (
+                    <TableCell>
+                      {grade.student ? 
+                        `${grade.student.firstName} ${grade.student.lastName} (${grade.studentEmail})` : 
+                        grade.studentEmail ? 
+                          `Unknown Student (${grade.studentEmail})` : 
+                          'Unknown Student'}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Chip
                       label={gpaValue.toFixed(1)}

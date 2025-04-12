@@ -80,12 +80,13 @@ public class EnrollmentController {
                 .getBody();
         System.out.println("JWT Claims: " + claims.toString());
         
-        String userId = claims.get("id", String.class);
-        if (userId == null) {
-            throw new RuntimeException("User ID not found in JWT token");
+        // Use the email from the sub claim as the student ID
+        String email = claims.getSubject();
+        if (email == null) {
+            throw new RuntimeException("Email not found in JWT token");
         }
-        System.out.println("Using user ID from token: " + userId);
-        return userId;
+        System.out.println("Using email from token: " + email);
+        return email;
     }
 
     private Key getSigningKey() {

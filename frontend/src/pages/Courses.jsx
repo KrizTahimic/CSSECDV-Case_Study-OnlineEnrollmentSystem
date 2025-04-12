@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import API_BASE_URLS from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
@@ -44,7 +45,7 @@ const Courses = () => {
   const [instructors, setInstructors] = useState([]);
   const [userEnrollments, setUserEnrollments] = useState([]);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const { user } = useAuth();
 
   const isEnrolled = (courseId) => {
     return userEnrollments.some(enrollment => 
@@ -54,7 +55,7 @@ const Courses = () => {
   };
 
   const fetchUserEnrollments = async () => {
-    if (user.role !== 'student') return;
+    if (!user || user.role?.toLowerCase() !== 'student') return;
     
     try {
       const token = localStorage.getItem('token');
@@ -85,7 +86,7 @@ const Courses = () => {
       }
 
       setLoading(true);
-      console.log('Current user:', user); // Debug: log user data
+      console.log('Current user:', user);
 
       let url = API_BASE_URLS.COURSE;
       const response = await fetch(url, {
@@ -96,41 +97,76 @@ const Courses = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('All courses:', data); // Debug: log all courses
+        console.log('All courses:', data);
+        
+        // Populate instructor details for each course
+        const populatedCourses = await Promise.all(data.map(async course => {
+          if (course.instructorId) {
+            try {
+              const instructorResponse = await fetch(`${API_BASE_URLS.AUTH}/users/${course.instructorId}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (instructorResponse.ok) {
+                const instructorData = await instructorResponse.json();
+                return {
+                  ...course,
+                  instructor: instructorData
+                };
+              }
+            } catch (err) {
+              console.error('Error fetching instructor details:', err);
+            }
+          }
+          return course;
+        }));
         
         // If user is faculty, filter courses to only show ones they teach
-        if (user.role && user.role.toLowerCase() === 'faculty') {
-          console.log('Filtering courses for faculty user:', user.firstName, user.lastName);
+        if (user && user.role && user.role.toLowerCase() === 'faculty') {
+          console.log('Filtering courses for faculty user:', {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName
+          });
           
-          // Try multiple ways to match the instructor
-          const facultyCourses = data.filter(course => {
-            // Match by email
-            if (course.instructor && course.instructor.email === user.email) {
+          const facultyCourses = populatedCourses.filter(course => {
+            console.log('Checking course:', {
+              courseId: course.id,
+              courseCode: course.code,
+              instructorId: course.instructorId,
+              instructorEmail: course.instructor?.email,
+              instructorName: course.instructor ? `${course.instructor.firstName} ${course.instructor.lastName}` : 'N/A'
+            });
+
+            // Try to match by instructorId
+            if (course.instructorId === user.id || course.instructor?.id === user.id) {
+              console.log('✓ Match by instructorId');
               return true;
             }
-            
-            // Match by name (case insensitive)
-            if (course.instructor && 
-                course.instructor.firstName && 
-                course.instructor.lastName &&
-                course.instructor.firstName.toLowerCase() === user.firstName.toLowerCase() &&
-                course.instructor.lastName.toLowerCase() === user.lastName.toLowerCase()) {
+
+            // Try to match by email (case insensitive)
+            if (course.instructor?.email?.toLowerCase() === user.email?.toLowerCase()) {
+              console.log('✓ Match by email');
               return true;
             }
-            
-            // Match by ID
-            if ((course.instructorId === user.id) || 
-                (course.instructor && course.instructor.id === user.id)) {
+
+            // Try to match by MongoDB ID format
+            if (course.instructorId && user.id && 
+                (course.instructorId.includes(user.id) || user.id.includes(course.instructorId))) {
+              console.log('✓ Match by ID substring');
               return true;
             }
-            
+
             return false;
           });
           
-          console.log('Filtered faculty courses:', facultyCourses);
+          console.log('Filtered faculty courses count:', facultyCourses.length);
           setCourses(facultyCourses);
         } else {
-          setCourses(data);
+          setCourses(populatedCourses);
         }
         setError('');
       } else {
@@ -169,12 +205,14 @@ const Courses = () => {
   };
 
   useEffect(() => {
-    fetchCourses();
-    fetchInstructors();
-    if (user.role === 'student') {
-      fetchUserEnrollments();
+    if (user) {
+      fetchCourses();
+      fetchInstructors();
+      if (user.role?.toLowerCase() === 'student') {
+        fetchUserEnrollments();
+      }
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -312,7 +350,7 @@ const Courses = () => {
     <Container>
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          {user.role === 'faculty' ? 'My Courses' : 'Available Courses'}
+          {user.role?.toLowerCase() === 'faculty' ? 'My Courses' : 'Available Courses'}
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -324,7 +362,7 @@ const Courses = () => {
             {success}
           </Alert>
         )}
-        {user.role === 'admin' && (
+        {user.role?.toLowerCase() === 'admin' && (
           <Box sx={{ mb: 2 }}>
             <Button
               variant="contained"
@@ -341,7 +379,7 @@ const Courses = () => {
             <Grid item xs={12}>
               <Paper sx={{ p: 3, textAlign: 'center' }}>
                 <Typography variant="body1">
-                  {user.role === 'faculty' 
+                  {user.role?.toLowerCase() === 'faculty' 
                     ? 'You are not currently assigned to teach any courses.' 
                     : 'No courses available at this time.'}
                 </Typography>
@@ -381,7 +419,7 @@ const Courses = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    {(user.role === 'student' || !user.role) && (
+                    {user.role?.toLowerCase() === 'student' && (
                       <Button
                         variant="contained"
                         color="primary"
@@ -400,7 +438,7 @@ const Courses = () => {
                         {isEnrolled(course.id || course._id) ? 'ENROLLED' : 'ENROLL'}
                       </Button>
                     )}
-                    {user.role === 'admin' && (
+                    {user.role?.toLowerCase() === 'admin' && (
                       <Button
                         variant="outlined"
                         color="error"

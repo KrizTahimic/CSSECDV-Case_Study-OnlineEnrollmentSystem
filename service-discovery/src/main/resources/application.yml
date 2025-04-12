@@ -1,11 +1,15 @@
 server:
   port: 8761
+  address: 0.0.0.0  # Bind to all network interfaces
 
 spring:
   application:
     name: service-discovery
 
 eureka:
+  instance:
+    hostname: 192.168.188.100
+    preferIpAddress: true
   client:
     register-with-eureka: false
     fetch-registry: false

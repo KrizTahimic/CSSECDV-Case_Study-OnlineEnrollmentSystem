@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -8,49 +8,14 @@ import {
   Box,
   Container,
 } from '@mui/material';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('token');
-      const userDataString = localStorage.getItem('user');
-      let userData = null;
-
-      try {
-        if (userDataString) {
-          userData = JSON.parse(userDataString);
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-
-      setIsAuthenticated(!!token);
-      setUser(userData);
-    };
-
-    // Check auth status on mount
-    checkAuth();
-
-    // Listen for auth state changes
-    window.addEventListener('authStateChanged', checkAuth);
-
-    // Cleanup listener on unmount
-    return () => {
-      window.removeEventListener('authStateChanged', checkAuth);
-    };
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsAuthenticated(false);
-    setUser(null);
-    // Dispatch event to notify other components
-    window.dispatchEvent(new Event('authStateChanged'));
+    logout();
     navigate('/');
   };
 
@@ -86,15 +51,15 @@ const Navbar = () => {
               }
             } 
           }}>
-            {isAuthenticated && user ? (
+            {user ? (
               <>
                 <Button color="inherit" component={RouterLink} to="/dashboard">
                   DASHBOARD
                 </Button>
                 <Button color="inherit" component={RouterLink} to="/courses">
-                  {user.role === 'faculty' ? 'MY COURSES' : 'COURSES'}
+                  {user.role?.toLowerCase() === 'faculty' ? 'MY COURSES' : 'COURSES'}
                 </Button>
-                {user.role === 'student' && (
+                {user.role?.toLowerCase() === 'student' && (
                   <Button color="inherit" component={RouterLink} to="/enrollments">
                     ENROLLMENTS
                   </Button>

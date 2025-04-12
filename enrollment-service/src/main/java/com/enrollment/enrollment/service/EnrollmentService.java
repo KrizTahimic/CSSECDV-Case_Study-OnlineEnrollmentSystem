@@ -44,7 +44,22 @@ public class EnrollmentService {
 
     @CircuitBreaker(name = "basic")
     public List<Enrollment> getCourseEnrollments(String courseId) {
-        return enrollmentRepository.findByCourseId(courseId);
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
+        
+        // Populate course details for each enrollment
+        return enrollments.stream().map(enrollment -> {
+            try {
+                Course course = courseClient.getCourse(enrollment.getCourseId());
+                enrollment.setCourse(course);
+                return enrollment;
+            } catch (Exception e) {
+                System.err.println("Error fetching course details for enrollment: " + e.getMessage());
+                if (e.getMessage().contains("Connection refused") || e.getMessage().contains("Connection timed out")) {
+                    throw new RuntimeException("Course service is currently unavailable. Please try again later.");
+                }
+                return enrollment;
+            }
+        }).collect(Collectors.toList());
     }
 
     @CircuitBreaker(name = "basic")
