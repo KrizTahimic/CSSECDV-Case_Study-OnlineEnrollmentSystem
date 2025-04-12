@@ -48,8 +48,8 @@ public class AuthService {
 
             // Validate role
             log.info("Validating role: {}", request.getRole());
-            List<String> validRoles = Arrays.asList("student", "instructor", "admin");
-            String role = request.getRole().toLowerCase();
+            List<String> validRoles = Arrays.asList("student", "instructor", "faculty", "Faculty", "admin");
+            String role = request.getRole();
             if (!validRoles.contains(role)) {
                 log.error("Invalid role: {}", request.getRole());
                 throw new RuntimeException("Invalid role. Must be one of: " + validRoles);
