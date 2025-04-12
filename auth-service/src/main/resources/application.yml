@@ -16,11 +16,14 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
     registry-fetch-interval-seconds: 5
     instance:
-      lease-renewal-interval-in-seconds: 2
-      lease-expiration-duration-in-seconds: 5
+      lease-renewal-interval-in-seconds: 5
+      lease-expiration-duration-in-seconds: 15
       prefer-ip-address: true
       health-check-url-path: /actuator/health
       status-page-url-path: /actuator/info
+      initial-status: starting
+      metadata-map:
+        startup: ${random.int}
 
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
