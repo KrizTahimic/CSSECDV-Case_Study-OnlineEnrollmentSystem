@@ -110,6 +110,13 @@ The system consists of the following nodes:
 1. Start MongoDB:
    Ensure MongoDB is running on the default port (27017).
 
+   If not installed:
+      ```bash
+      brew tap mongodb/brew
+      brew install mongodb-community
+      brew services start mongodb-community
+      ```
+
 2. Start the services in the following order:
 
    a. First, start the Service Discovery (Eureka Server):
@@ -206,6 +213,3 @@ Each service uses its own MongoDB database:
 3. If frontend can't connect to services:
    - Check if all services are running
    - Verify proxy settings in the frontend configuration
-
-
-Try
