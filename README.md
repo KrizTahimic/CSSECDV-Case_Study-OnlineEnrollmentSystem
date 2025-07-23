@@ -206,3 +206,6 @@ Each service uses its own MongoDB database:
 3. If frontend can't connect to services:
    - Check if all services are running
    - Verify proxy settings in the frontend configuration
+
+
+Try
