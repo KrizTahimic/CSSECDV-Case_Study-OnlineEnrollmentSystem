@@ -1,7 +1,5 @@
 package com.enrollment.course.security;
 
-import com.enrollment.course.config.SecurityConfig;
-import com.enrollment.course.controller.CourseController;
 import com.enrollment.course.model.Course;
 import com.enrollment.course.service.CourseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,14 +7,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
-import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -27,11 +23,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Tests requirement 2.1.1: Require authentication for all pages and resources,
  * except those specifically intended to be public.
  * 
- * CRITICAL: Currently, the SecurityConfig allows all course endpoints without authentication!
- * This test demonstrates the security vulnerability.
+ * This test verifies that authentication is properly required for all course endpoints.
  */
-@WebMvcTest(CourseController.class)
-@Import(SecurityConfig.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 class CourseSecurityTest {
 
     @Autowired
@@ -42,9 +37,6 @@ class CourseSecurityTest {
 
     @MockBean
     private CourseService courseService;
-
-    @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     private Course testCourse;
 
@@ -62,63 +54,50 @@ class CourseSecurityTest {
     }
 
     @Test
-    @DisplayName("SECURITY VULNERABILITY: Course endpoints are publicly accessible without authentication")
-    void demonstrateSecurityVulnerability() throws Exception {
-        // This test PASSES, which means there's a security vulnerability!
-        // All these endpoints should require authentication but don't.
+    @DisplayName("Course endpoints require authentication")
+    void endpointsRequireAuthentication() throws Exception {
+        // All course endpoints should return 403 Forbidden without authentication
         
-        when(courseService.getAllCourses()).thenReturn(Arrays.asList(testCourse));
-        when(courseService.getOpenCourses()).thenReturn(Arrays.asList(testCourse));
-        when(courseService.getCourseById("course123")).thenReturn(Optional.of(testCourse));
-        when(courseService.getCourseByCode("CS101")).thenReturn(Optional.of(testCourse));
-        when(courseService.createCourse(any(Course.class))).thenReturn(testCourse);
-        when(courseService.updateCourse(eq("course123"), any(Course.class))).thenReturn(testCourse);
-        
-        // GET endpoints - should require authentication but don't
+        // GET endpoints - require authentication
         mockMvc.perform(get("/api/courses"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("CS101"));
+                .andExpect(status().isForbidden());
         
         mockMvc.perform(get("/api/courses/open"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
         mockMvc.perform(get("/api/courses/course123"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("CS101"));
+                .andExpect(status().isForbidden());
         
         mockMvc.perform(get("/api/courses/code/CS101"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
-        // POST endpoint - should require authentication AND authorization but doesn't
+        // POST endpoint - requires authentication
         mockMvc.perform(post("/api/courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testCourse)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
-        // PUT endpoint - should require authentication AND authorization but doesn't
+        // PUT endpoint - requires authentication
         mockMvc.perform(put("/api/courses/course123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testCourse)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
-        // DELETE endpoint - should require authentication AND authorization but doesn't
+        // DELETE endpoint - requires authentication
         mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
-        // Enrollment endpoints - also publicly accessible!
-        when(courseService.incrementEnrollment("course123")).thenReturn(testCourse);
-        when(courseService.decrementEnrollment("course123")).thenReturn(testCourse);
-        
+        // Enrollment endpoints - require authentication
         mockMvc.perform(post("/api/courses/course123/enroll"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
         mockMvc.perform(post("/api/courses/course123/unenroll"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Demonstrates that anyone can create courses without authentication")
-    void anyoneCanCreateCourses() throws Exception {
+    @DisplayName("Unauthenticated users cannot create courses")
+    void unauthenticatedCannotCreateCourses() throws Exception {
         Course maliciousCourse = new Course();
         maliciousCourse.setCode("HACK101");
         maliciousCourse.setTitle("How to Hack");
@@ -126,26 +105,25 @@ class CourseSecurityTest {
         maliciousCourse.setCredits(3);
         maliciousCourse.setCapacity(100);
         
-        when(courseService.createCourse(any(Course.class))).thenReturn(maliciousCourse);
-        
-        // This should fail but doesn't - anyone can create courses!
+        // Without authentication, should get 403 Forbidden
         mockMvc.perform(post("/api/courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(maliciousCourse)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("HACK101"));
+                .andExpect(status().isForbidden());
         
-        verify(courseService).createCourse(any(Course.class));
+        // Service should never be called
+        verify(courseService, never()).createCourse(any(Course.class));
     }
 
     @Test
-    @DisplayName("Demonstrates that anyone can delete courses without authentication")
-    void anyoneCanDeleteCourses() throws Exception {
-        // This should fail but doesn't - anyone can delete any course!
+    @DisplayName("Unauthenticated users cannot delete courses")
+    void unauthenticatedCannotDeleteCourses() throws Exception {
+        // Without authentication, should get 403 Forbidden
         mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         
-        verify(courseService).deleteCourse("course123");
+        // Service should never be called
+        verify(courseService, never()).deleteCourse("course123");
     }
 
     @Test

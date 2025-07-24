@@ -104,6 +104,20 @@ public class CourseService {
 
     @CircuitBreaker(name = "basic")
     public Course createCourse(Course course) {
+        if (course == null) {
+            throw new IllegalArgumentException("Course cannot be null");
+        }
+        
+        // Validate required fields
+        if (course.getCode() == null || course.getCode().trim().isEmpty()) {
+            throw new IllegalArgumentException("Course code is required");
+        }
+        
+        // Validate capacity
+        if (course.getCapacity() != null && course.getCapacity() < 0) {
+            throw new IllegalArgumentException("Course capacity cannot be negative");
+        }
+        
         course.setEnrolled(0);
         course.setStatus("open");
         return courseRepository.save(course);
@@ -145,13 +159,14 @@ public class CourseService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
         
-        if (course.getEnrolled() > 0) {
-            course.setEnrolled(course.getEnrolled() - 1);
-            if (course.getEnrolled() < course.getCapacity()) {
-                course.setStatus("open");
-            }
-            return courseRepository.save(course);
+        if (course.getEnrolled() <= 0) {
+            throw new RuntimeException("Cannot decrement enrollment below zero");
         }
-        return course;
+        
+        course.setEnrolled(course.getEnrolled() - 1);
+        if (course.getEnrolled() < course.getCapacity()) {
+            course.setStatus("open");
+        }
+        return courseRepository.save(course);
     }
 } 

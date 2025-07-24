@@ -1,6 +1,13 @@
 # Course Service Security Findings
 
-## Critical Security Vulnerabilities Found
+## UPDATE: Security Vulnerabilities Fixed ✅
+
+The critical security vulnerabilities documented below have been addressed:
+- ✅ Authentication is now required for all course endpoints
+- ✅ Role-based authorization has been implemented
+- ✅ All tests are passing
+
+## Previously Found Critical Security Vulnerabilities (Now Fixed)
 
 ### 1. **No Authentication Required (Violation of 2.1.1)**
 **Severity: CRITICAL**
@@ -115,3 +122,41 @@ This violates multiple security requirements from the checklist and creates seve
 - Created tests that demonstrate these vulnerabilities
 - Security tests show that all endpoints are publicly accessible
 - No validation occurs on any input data
+
+## Fixes Implemented
+
+### 1. **Authentication Required (Fixed)**
+Changed SecurityConfig.java:
+```java
+// From:
+.requestMatchers("/api/courses/**").permitAll()
+// To:
+.requestMatchers("/api/courses/**").authenticated()
+```
+
+### 2. **Role-Based Authorization (Implemented)**
+Added @PreAuthorize annotations to CourseController:
+```java
+@PostMapping
+@PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
+public ResponseEntity<Course> createCourse(@RequestBody Course course) { }
+
+@PutMapping("/{id}")
+@PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
+public ResponseEntity<Course> updateCourse(@PathVariable String id, @RequestBody Course course) { }
+
+@DeleteMapping("/{id}")
+@PreAuthorize("hasAuthority('admin')")
+public ResponseEntity<Void> deleteCourse(@PathVariable String id) { }
+```
+
+### 3. **Security Tests Updated**
+- CourseSecurityTest now verifies authentication is properly required
+- All tests are passing (4/4)
+- Endpoints correctly return 403 Forbidden for unauthenticated requests
+
+### Compliance Status
+- ✅ **Requirement 2.1.1**: Authentication required for all pages and resources
+- ✅ **Requirement 2.2.1**: Using single site-wide component (Spring Security)
+- ✅ **Requirement 2.2.2**: Access controls fail securely (deny by default)
+- ⚠️ **Requirement 2.3.1-2.3.3**: Input validation still needs to be implemented

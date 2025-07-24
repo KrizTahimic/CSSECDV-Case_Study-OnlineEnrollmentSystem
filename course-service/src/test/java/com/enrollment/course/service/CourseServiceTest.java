@@ -67,8 +67,8 @@ class CourseServiceTest {
         closedCourse.setCode("CS102");
         closedCourse.setStatus("closed");
 
-        List<Course> allCourses = Arrays.asList(testCourse, closedCourse);
-        when(courseRepository.findAll()).thenReturn(allCourses);
+        List<Course> openCoursesList = Arrays.asList(testCourse);
+        when(courseRepository.findByStatus("open")).thenReturn(openCoursesList);
 
         List<Course> openCourses = courseService.getOpenCourses();
 
@@ -141,7 +141,7 @@ class CourseServiceTest {
     @Test
     @DisplayName("Should update existing course")
     void shouldUpdateExistingCourse() {
-        when(courseRepository.findById("course123")).thenReturn(Optional.of(testCourse));
+        when(courseRepository.existsById("course123")).thenReturn(true);
         when(courseRepository.save(any(Course.class))).thenReturn(testCourse);
 
         Course updatedCourse = new Course();
@@ -151,20 +151,20 @@ class CourseServiceTest {
         Course result = courseService.updateCourse("course123", updatedCourse);
 
         assertNotNull(result);
-        verify(courseRepository).findById("course123");
+        verify(courseRepository).existsById("course123");
         verify(courseRepository).save(any(Course.class));
     }
 
     @Test
     @DisplayName("Should throw exception when updating non-existent course")
     void shouldThrowExceptionWhenUpdatingNonExistentCourse() {
-        when(courseRepository.findById("nonexistent")).thenReturn(Optional.empty());
+        when(courseRepository.existsById("nonexistent")).thenReturn(false);
 
         assertThrows(RuntimeException.class, () -> {
             courseService.updateCourse("nonexistent", testCourse);
         });
 
-        verify(courseRepository).findById("nonexistent");
+        verify(courseRepository).existsById("nonexistent");
         verify(courseRepository, never()).save(any());
     }
 
@@ -245,11 +245,12 @@ class CourseServiceTest {
     }
 
     private boolean isValidCourseCode(String code) {
-        // Course code should be 2-10 alphanumeric characters
+        // Course code should be 2-10 alphanumeric characters with at least one letter
         return code != null && 
                code.length() >= 2 && 
                code.length() <= 10 && 
-               code.matches("^[A-Z0-9]+$");
+               code.matches("^[A-Z0-9]+$") &&
+               code.matches(".*[A-Z].*");  // Must contain at least one letter
     }
 
     @Test

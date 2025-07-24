@@ -4,6 +4,7 @@ import com.enrollment.course.model.Course;
 import com.enrollment.course.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,11 +41,13 @@ public class CourseController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
     public ResponseEntity<Course> createCourse(@RequestBody Course course) {
         return ResponseEntity.ok(courseService.createCourse(course));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
     public ResponseEntity<Course> updateCourse(@PathVariable String id, @RequestBody Course course) {
         try {
             return ResponseEntity.ok(courseService.updateCourse(id, course));
@@ -54,6 +57,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('admin')")
     public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
         courseService.deleteCourse(id);
         return ResponseEntity.ok().build();

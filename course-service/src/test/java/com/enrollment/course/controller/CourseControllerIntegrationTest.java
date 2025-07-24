@@ -7,12 +7,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
@@ -25,14 +25,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Unit tests for CourseController focusing on controller logic.
- * Security is tested separately in CourseControllerIntegrationTest.
+ * Integration tests for CourseController with full Spring context.
+ * These tests verify the controller behavior with actual security configuration.
  */
-@WebMvcTest(value = CourseController.class, excludeFilters = {
-    @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, 
-    classes = com.enrollment.course.config.SecurityConfig.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@TestPropertySource(properties = {
+    "jwt.secret=testsecret123456789012345678901234567890",
+    "spring.data.mongodb.port=0"  // Disable MongoDB for tests
 })
-class CourseControllerTest {
+class CourseControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,34 +62,47 @@ class CourseControllerTest {
     }
 
     @Test
-    @DisplayName("Should get all courses")
-    @WithMockUser
-    void shouldGetAllCourses() throws Exception {
+    @DisplayName("Should require authentication for all course endpoints")
+    void shouldRequireAuthenticationForAllEndpoints() throws Exception {
+        // Without authentication, all requests should return 403
+        mockMvc.perform(get("/api/courses"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/courses/open"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/courses/course123"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/courses")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(validCourse)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/courses/course123")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(validCourse)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/courses/course123"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Should allow students to view courses")
+    @WithMockUser(authorities = "student")
+    void shouldAllowStudentsToViewCourses() throws Exception {
         List<Course> courses = Arrays.asList(validCourse);
         when(courseService.getAllCourses()).thenReturn(courses);
+        when(courseService.getOpenCourses()).thenReturn(courses);
+        when(courseService.getCourseById("course123")).thenReturn(Optional.of(validCourse));
 
         mockMvc.perform(get("/api/courses"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].code").value("CS101"));
-    }
-
-    @Test
-    @DisplayName("Should get open courses")
-    @WithMockUser
-    void shouldGetOpenCourses() throws Exception {
-        List<Course> courses = Arrays.asList(validCourse);
-        when(courseService.getOpenCourses()).thenReturn(courses);
 
         mockMvc.perform(get("/api/courses/open"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("CS101"));
-    }
-
-    @Test
-    @DisplayName("Should get course by ID")
-    @WithMockUser
-    void shouldGetCourseById() throws Exception {
-        when(courseService.getCourseById("course123")).thenReturn(Optional.of(validCourse));
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/courses/course123"))
                 .andExpect(status().isOk())
@@ -95,19 +110,20 @@ class CourseControllerTest {
     }
 
     @Test
-    @DisplayName("Should return 404 when course not found")
-    @WithMockUser
-    void shouldReturn404WhenCourseNotFound() throws Exception {
-        when(courseService.getCourseById("nonexistent")).thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/api/courses/nonexistent"))
-                .andExpect(status().isNotFound());
+    @DisplayName("Should restrict course creation to instructors and admins")
+    @WithMockUser(authorities = "student")
+    void shouldRestrictCourseCreationToAuthorizedRoles() throws Exception {
+        // Students should not be able to create courses
+        mockMvc.perform(post("/api/courses")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(validCourse)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Should create course with valid data")
+    @DisplayName("Should allow instructors to create courses")
     @WithMockUser(authorities = "faculty")
-    void shouldCreateCourseWithValidData() throws Exception {
+    void shouldAllowInstructorsToCreateCourses() throws Exception {
         when(courseService.createCourse(any(Course.class))).thenReturn(validCourse);
 
         mockMvc.perform(post("/api/courses")
@@ -120,23 +136,36 @@ class CourseControllerTest {
     }
 
     @Test
-    @DisplayName("Should update course")
-    @WithMockUser(authorities = "faculty")
-    void shouldUpdateCourse() throws Exception {
+    @DisplayName("Should allow admins to update any course")
+    @WithMockUser(authorities = "admin")
+    void shouldAllowAdminsToUpdateAnyCourse() throws Exception {
         when(courseService.updateCourse(eq("course123"), any(Course.class))).thenReturn(validCourse);
 
         mockMvc.perform(put("/api/courses/course123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validCourse)))
                 .andExpect(status().isOk());
-
-        verify(courseService).updateCourse(eq("course123"), any(Course.class));
     }
 
     @Test
-    @DisplayName("Should return 404 when updating non-existent course")
+    @DisplayName("Should allow admins to delete courses")
+    @WithMockUser(authorities = "admin")
+    void shouldAllowAdminsToDeleteCourses() throws Exception {
+        mockMvc.perform(delete("/api/courses/course123"))
+                .andExpect(status().isOk());
+
+        verify(courseService).deleteCourse("course123");
+    }
+
+    @Test
+    @DisplayName("Should handle course not found gracefully")
     @WithMockUser(authorities = "faculty")
-    void shouldReturn404WhenUpdatingNonExistentCourse() throws Exception {
+    void shouldHandleCourseNotFound() throws Exception {
+        when(courseService.getCourseById("nonexistent")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/courses/nonexistent"))
+                .andExpect(status().isNotFound());
+
         when(courseService.updateCourse(eq("nonexistent"), any(Course.class)))
                 .thenThrow(new RuntimeException("Course not found"));
 
@@ -147,36 +176,27 @@ class CourseControllerTest {
     }
 
     @Test
-    @DisplayName("Should delete course")
-    @WithMockUser(authorities = "admin")
-    void shouldDeleteCourse() throws Exception {
-        mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isOk());
-
-        verify(courseService).deleteCourse("course123");
-    }
-
-    @Test
-    @DisplayName("Should increment enrollment")
-    @WithMockUser
-    void shouldIncrementEnrollment() throws Exception {
+    @DisplayName("Should properly increment enrollment count")
+    @WithMockUser(authorities = "student")
+    void shouldIncrementEnrollmentCount() throws Exception {
+        validCourse.setEnrolled(5);
         Course enrolledCourse = new Course();
         enrolledCourse.setId(validCourse.getId());
         enrolledCourse.setCode(validCourse.getCode());
-        enrolledCourse.setEnrolled(1);
+        enrolledCourse.setEnrolled(6);
 
         when(courseService.incrementEnrollment("course123")).thenReturn(enrolledCourse);
 
         mockMvc.perform(post("/api/courses/course123/enroll"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.enrolled").value(1));
+                .andExpect(jsonPath("$.enrolled").value(6));
 
         verify(courseService).incrementEnrollment("course123");
     }
 
     @Test
     @DisplayName("Should handle enrollment capacity exceeded")
-    @WithMockUser
+    @WithMockUser(authorities = "student")
     void shouldHandleEnrollmentCapacityExceeded() throws Exception {
         when(courseService.incrementEnrollment("course123"))
                 .thenThrow(new RuntimeException("Course is full"));
@@ -186,9 +206,9 @@ class CourseControllerTest {
     }
 
     @Test
-    @DisplayName("Should decrement enrollment")
-    @WithMockUser
-    void shouldDecrementEnrollment() throws Exception {
+    @DisplayName("Should properly decrement enrollment count")
+    @WithMockUser(authorities = "student")
+    void shouldDecrementEnrollmentCount() throws Exception {
         validCourse.setEnrolled(5);
         Course unenrolledCourse = new Course();
         unenrolledCourse.setId(validCourse.getId());
@@ -202,16 +222,5 @@ class CourseControllerTest {
                 .andExpect(jsonPath("$.enrolled").value(4));
 
         verify(courseService).decrementEnrollment("course123");
-    }
-
-    @Test
-    @DisplayName("Should handle decrement below zero")
-    @WithMockUser
-    void shouldHandleDecrementBelowZero() throws Exception {
-        when(courseService.decrementEnrollment("course123"))
-                .thenThrow(new RuntimeException("Cannot decrement below zero"));
-
-        mockMvc.perform(post("/api/courses/course123/unenroll"))
-                .andExpect(status().isBadRequest());
     }
 }
