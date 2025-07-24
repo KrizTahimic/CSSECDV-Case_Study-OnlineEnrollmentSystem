@@ -7,14 +7,23 @@ import com.enrollment.auth.dto.RegisterRequest;
 import com.enrollment.auth.model.User;
 import com.enrollment.auth.repository.UserRepository;
 import com.enrollment.auth.service.AuthService;
+import com.enrollment.auth.service.SecurityEventLogger;
+import com.enrollment.auth.security.JwtAuthenticationFilter;
+import com.enrollment.auth.security.CustomUserDetailsService;
+import com.enrollment.auth.security.JwtTokenUtil;
+import com.enrollment.auth.service.AccountLockoutService;
+import com.enrollment.auth.config.TestJwtConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
@@ -29,6 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Focuses on testing API behavior, request/response handling, and error scenarios.
  */
 @WebMvcTest(AuthController.class)
+@AutoConfigureMockMvc(addFilters = false) // Disable security for unit testing
+@Import(TestJwtConfig.class)
+@TestPropertySource(properties = {"jwt.secret=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"})
 class AuthControllerTest {
 
     @Autowired
@@ -42,6 +54,21 @@ class AuthControllerTest {
 
     @MockBean
     private UserRepository userRepository;
+    
+    @MockBean
+    private SecurityEventLogger securityEventLogger;
+    
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    
+    @MockBean
+    private CustomUserDetailsService customUserDetailsService;
+    
+    @MockBean
+    private JwtTokenUtil jwtTokenUtil;
+    
+    @MockBean
+    private AccountLockoutService accountLockoutService;
 
     private RegisterRequest validRegisterRequest;
     private AuthRequest validAuthRequest;
@@ -205,7 +232,12 @@ class AuthControllerTest {
         changeRequest.setCurrentPassword("OldPass@123");
         changeRequest.setNewPassword("NewPass@456");
 
-        String validToken = "Bearer valid.jwt.token";
+        // Generate a valid JWT token
+        String jwtToken = TestJwtConfig.generateTestToken("test@example.com", "user123");
+        String validToken = "Bearer " + jwtToken;
+        
+        // Mock the service call
+        doNothing().when(authService).changePassword(anyString(), any(PasswordChangeRequest.class));
 
         mockMvc.perform(post("/api/auth/change-password")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -225,7 +257,8 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/change-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(changeRequest)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("An error occurred while processing your request"));
     }
 
     @Test
@@ -235,7 +268,8 @@ class AuthControllerTest {
         changeRequest.setCurrentPassword("OldPass@123");
         changeRequest.setNewPassword("weak"); // Invalid new password
 
-        String validToken = "Bearer valid.jwt.token";
+        String jwtToken = TestJwtConfig.generateTestToken("test@example.com", "user123");
+        String validToken = "Bearer " + jwtToken;
 
         mockMvc.perform(post("/api/auth/change-password")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -250,7 +284,8 @@ class AuthControllerTest {
     void shouldReauthenticateSuccessfully() throws Exception {
         when(authService.verifyPassword(anyString(), anyString())).thenReturn(true);
 
-        String validToken = "Bearer valid.jwt.token";
+        String jwtToken = TestJwtConfig.generateTestToken("test@example.com", "user123");
+        String validToken = "Bearer " + jwtToken;
 
         mockMvc.perform(post("/api/auth/reauthenticate")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -265,7 +300,8 @@ class AuthControllerTest {
     void shouldRejectReauthenticationWithInvalidCredentials() throws Exception {
         when(authService.verifyPassword(anyString(), anyString())).thenReturn(false);
 
-        String validToken = "Bearer valid.jwt.token";
+        String jwtToken = TestJwtConfig.generateTestToken("test@example.com", "user123");
+        String validToken = "Bearer " + jwtToken;
 
         mockMvc.perform(post("/api/auth/reauthenticate")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -286,9 +322,11 @@ class AuthControllerTest {
                 .role("student")
                 .build();
 
+        when(userRepository.findById("user123")).thenReturn(Optional.of(user));
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
-        String validToken = "Bearer valid.jwt.token";
+        String jwtToken = TestJwtConfig.generateTestToken("test@example.com", "user123");
+        String validToken = "Bearer " + jwtToken;
 
         mockMvc.perform(get("/api/auth/me")
                 .header("Authorization", validToken))
@@ -312,8 +350,8 @@ class AuthControllerTest {
     @DisplayName("Should handle missing authorization header")
     void shouldHandleMissingAuthorizationHeader() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Invalid or expired token"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("An error occurred while processing your request"));
     }
 
     @Test

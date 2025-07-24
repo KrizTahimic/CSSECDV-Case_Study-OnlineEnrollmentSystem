@@ -115,6 +115,7 @@ The system consists of the following nodes:
       brew tap mongodb/brew
       brew install mongodb-community
       brew services start mongodb-community
+      brew services start redis
       ```
 
 2. Start the services in the following order:
