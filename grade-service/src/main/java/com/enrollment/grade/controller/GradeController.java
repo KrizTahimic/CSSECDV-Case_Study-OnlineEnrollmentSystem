@@ -4,6 +4,8 @@ import com.enrollment.grade.model.Grade;
 import com.enrollment.grade.service.GradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RequestMethod;
 
@@ -20,21 +22,25 @@ public class GradeController {
     private final GradeService gradeService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
     public ResponseEntity<List<Grade>> getAllGrades() {
         return ResponseEntity.ok(gradeService.getAllGrades());
     }
 
     @GetMapping("/student/{studentEmail}")
+    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or (hasAuthority('student') and #studentEmail == authentication.name)")
     public ResponseEntity<List<Grade>> getStudentGrades(@PathVariable String studentEmail) {
         return ResponseEntity.ok(gradeService.getStudentGrades(studentEmail));
     }
 
     @GetMapping("/course/{courseId}")
+    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
     public ResponseEntity<List<Grade>> getCourseGrades(@PathVariable String courseId) {
         return ResponseEntity.ok(gradeService.getCourseGrades(courseId));
     }
 
     @GetMapping("/student/{studentEmail}/course/{courseId}")
+    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or (hasAuthority('student') and #studentEmail == authentication.name)")
     public ResponseEntity<Grade> getStudentCourseGrade(
             @PathVariable String studentEmail,
             @PathVariable String courseId) {
@@ -44,16 +50,24 @@ public class GradeController {
     }
 
     @GetMapping("/faculty/{facultyId}")
+    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
     public ResponseEntity<List<Grade>> getFacultyGrades(@PathVariable String facultyId) {
         return ResponseEntity.ok(gradeService.getFacultyGrades(facultyId));
     }
 
     @PostMapping
-    public ResponseEntity<Grade> submitGrade(@RequestBody Grade grade) {
+    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    public ResponseEntity<Grade> submitGrade(@RequestBody Grade grade, Authentication authentication) {
+        // Faculty can only submit grades for their own courses
+        if (authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("faculty"))) {
+            grade.setFacultyId(authentication.getName());
+        }
         return ResponseEntity.ok(gradeService.submitGrade(grade));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
     public ResponseEntity<Grade> updateGrade(@PathVariable String id, @RequestBody Grade grade) {
         try {
             return ResponseEntity.ok(gradeService.updateGrade(id, grade));
@@ -63,6 +77,7 @@ public class GradeController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('admin')")
     public ResponseEntity<Void> deleteGrade(@PathVariable String id) {
         gradeService.deleteGrade(id);
         return ResponseEntity.ok().build();
