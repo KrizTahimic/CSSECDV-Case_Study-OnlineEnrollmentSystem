@@ -50,7 +50,7 @@ The application must support at least three primary roles, each with different l
 
 ## Security Control Requirements
 
-See the rubric/checklist for the complete list of security controls: [CSSECDV Case Project Checklist.docx ↓](CSSECDV%20Case%20Project%20Checklist.docx)
+See the rubric/checklist for the complete list of security controls: checklist.md
 
 ## Group Composition
 

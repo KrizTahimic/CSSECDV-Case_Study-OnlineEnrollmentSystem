@@ -93,4 +93,4 @@ coverage/
 *.tgz
 
 # Yarn Integrity file
-.yarn-integrity 
+.yarn-integrity .claude/settings.local.json

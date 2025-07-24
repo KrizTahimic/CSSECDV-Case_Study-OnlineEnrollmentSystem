@@ -144,3 +144,23 @@ Each service manages its own MongoDB database:
 - API endpoints defined in `frontend/src/config/api.js`
 - Axios interceptors handle JWT token attachment
 - AuthContext manages authentication state
+
+## Code Quality Guidelines
+
+#### Core Principles
+- **KISS (Keep It Simple)**: Choose the simplest solution that meets requirements
+- **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
+- **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
+- Delete obsolete code
+- Fail fast and early. Avoid Fallbacks.
+- **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
+- Avoid over-engineering for hypothetical futures
+
+### Problem-Solving Approach
+- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
+- **Systematic debugging**: Use proper debugging techniques rather than quick patches
+
+### Documentation
+- Comment the "why," not the "what"
+- Use docstrings for functions and classes
+- Keep comments current with code changes
