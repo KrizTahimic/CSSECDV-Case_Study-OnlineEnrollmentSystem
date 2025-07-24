@@ -1,0 +1,47 @@
+# Test configuration for Course Service
+server:
+  port: 0  # Random port for tests
+
+spring:
+  application:
+    name: course-service-test
+  
+  # Use embedded MongoDB for tests
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: course_service_test
+  
+  # Disable Eureka for tests
+  cloud:
+    discovery:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# JWT configuration for tests
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+
+# Logging configuration for tests
+logging:
+  level:
+    com.enrollment.course: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Test-specific security settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

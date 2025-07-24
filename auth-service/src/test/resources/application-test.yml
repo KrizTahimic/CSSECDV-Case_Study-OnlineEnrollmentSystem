@@ -1,0 +1,65 @@
+# Test configuration for Auth Service
+server:
+  port: 0  # Random port for tests
+
+spring:
+  application:
+    name: auth-service-test
+  
+  # Use embedded MongoDB for tests
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: auth_service_test
+  
+  # Test Redis configuration
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  # Disable Eureka for tests
+  cloud:
+    discovery:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# JWT configuration for tests
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 3600000  # 1 hour
+
+# Logging configuration for tests
+logging:
+  level:
+    com.enrollment.auth: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.data.redis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Test-specific security settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# Disable security for actuator endpoints in tests
+security:
+  basic:
+    enabled: false
