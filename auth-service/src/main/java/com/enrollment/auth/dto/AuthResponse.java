@@ -15,4 +15,8 @@ public class AuthResponse {
     private String firstName;
     private String lastName;
     private String role;
+    
+    // Last login information (requirement 2.1.12)
+    private String lastLoginTime;
+    private String lastLoginIP;
 } 

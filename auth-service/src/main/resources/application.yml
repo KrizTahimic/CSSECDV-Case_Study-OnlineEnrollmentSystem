@@ -22,6 +22,15 @@ spring:
       allow-credentials: true
       max-age: 3600
       exposed-headers: Authorization
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
 
 eureka:
   client:
@@ -41,6 +50,7 @@ eureka:
 
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 3600000  # 1 hour in milliseconds
 
 resilience4j:
   circuitbreaker:

@@ -3,6 +3,7 @@ package com.enrollment.auth.controller;
 import com.enrollment.auth.dto.AuthRequest;
 import com.enrollment.auth.dto.AuthResponse;
 import com.enrollment.auth.dto.RegisterRequest;
+import com.enrollment.auth.dto.PasswordChangeRequest;
 import com.enrollment.auth.model.User;
 import com.enrollment.auth.repository.UserRepository;
 import com.enrollment.auth.service.AuthService;
@@ -16,12 +17,14 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -36,30 +39,9 @@ public class AuthController {
     private String secret;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         log.info("Received registration request for email: {}", request.getEmail());
         try {
-            if (request.getEmail() == null || request.getEmail().isEmpty()) {
-                log.error("Email is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
-            }
-            if (request.getPassword() == null || request.getPassword().isEmpty()) {
-                log.error("Password is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Password is required"));
-            }
-            if (request.getFirstName() == null || request.getFirstName().isEmpty()) {
-                log.error("First name is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "First name is required"));
-            }
-            if (request.getLastName() == null || request.getLastName().isEmpty()) {
-                log.error("Last name is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Last name is required"));
-            }
-            if (request.getRole() == null || request.getRole().isEmpty()) {
-                log.error("Role is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Role is required"));
-            }
-
             AuthResponse response = authService.register(request);
             log.info("Successfully registered user: {}", request.getEmail());
             return ResponseEntity.ok(response);
@@ -77,17 +59,18 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest request, HttpServletRequest servletRequest) {
         log.info("Received login request for email: {}", request.getEmail());
         try {
-            if (request.getEmail() == null || request.getEmail().isEmpty()) {
-                log.error("Email is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+            if (request.getEmail() == null || request.getEmail().isEmpty() || 
+                request.getPassword() == null || request.getPassword().isEmpty()) {
+                log.error("Missing email or password");
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid username and/or password"));
             }
-            if (request.getPassword() == null || request.getPassword().isEmpty()) {
-                log.error("Password is required");
-                return ResponseEntity.badRequest().body(Map.of("message", "Password is required"));
-            }
+
+            // Get client IP address
+            String ipAddress = getClientIP(servletRequest);
+            request.setIpAddress(ipAddress);
 
             AuthResponse response = authService.login(request);
             log.info("Successfully logged in user: {}", request.getEmail());
@@ -201,5 +184,111 @@ public class AuthController {
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", "User not found"));
+    }
+    
+    /**
+     * Changes user password with security validations.
+     * Implements requirements:
+     * - 2.1.10: Prevent password re-use (checks last 5 passwords)
+     * - 2.1.11: Password must be at least 1 day old before change
+     * - 2.1.13: Requires re-authentication
+     */
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody PasswordChangeRequest request,
+                                          @RequestHeader("Authorization") String token) {
+        try {
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                
+                // Parse token to get user email
+                byte[] keyBytes = Decoders.BASE64.decode(secret);
+                var key = Keys.hmacShaKeyFor(keyBytes);
+                
+                Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+                
+                String email = claims.getSubject();
+                
+                // Change password
+                authService.changePassword(email, request);
+                
+                return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+            }
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid or expired token"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error changing password", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Error changing password"));
+        }
+    }
+    
+    /**
+     * Re-authenticates user for sensitive operations.
+     * Implements requirement 2.1.13.
+     */
+    @PostMapping("/reauthenticate")
+    public ResponseEntity<?> reauthenticate(@RequestBody AuthRequest request,
+                                          @RequestHeader("Authorization") String token) {
+        try {
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                
+                // Parse token to get user email
+                byte[] keyBytes = Decoders.BASE64.decode(secret);
+                var key = Keys.hmacShaKeyFor(keyBytes);
+                
+                Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+                
+                String email = claims.getSubject();
+                
+                // Verify email matches
+                if (!email.equals(request.getEmail())) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("message", "Invalid credentials"));
+                }
+                
+                // Verify password
+                boolean isValid = authService.verifyPassword(email, request.getPassword());
+                if (isValid) {
+                    return ResponseEntity.ok(Map.of("message", "Authentication successful"));
+                } else {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("message", "Invalid credentials"));
+                }
+            }
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid or expired token"));
+        } catch (Exception e) {
+            log.error("Error during reauthentication", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Authentication failed"));
+        }
+    }
+    
+    private String getClientIP(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String xRealIP = request.getHeader("X-Real-IP");
+        if (xRealIP != null && !xRealIP.isEmpty()) {
+            return xRealIP;
+        }
+        
+        return request.getRemoteAddr();
     }
 } 
