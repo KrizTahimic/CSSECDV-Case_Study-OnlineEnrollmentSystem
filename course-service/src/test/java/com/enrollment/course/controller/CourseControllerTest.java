@@ -9,11 +9,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import com.enrollment.course.config.TestSecurityConfig;
 
 import java.util.Arrays;
 import java.util.List;
@@ -28,10 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit tests for CourseController focusing on controller logic.
  * Security is tested separately in CourseControllerIntegrationTest.
  */
-@WebMvcTest(value = CourseController.class, excludeFilters = {
-    @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, 
-    classes = com.enrollment.course.config.SecurityConfig.class)
-})
+@WebMvcTest(CourseController.class)
+@Import(TestSecurityConfig.class)
 class CourseControllerTest {
 
     @Autowired
@@ -61,7 +58,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should get all courses")
-    @WithMockUser
     void shouldGetAllCourses() throws Exception {
         List<Course> courses = Arrays.asList(validCourse);
         when(courseService.getAllCourses()).thenReturn(courses);
@@ -73,7 +69,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should get open courses")
-    @WithMockUser
     void shouldGetOpenCourses() throws Exception {
         List<Course> courses = Arrays.asList(validCourse);
         when(courseService.getOpenCourses()).thenReturn(courses);
@@ -85,7 +80,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should get course by ID")
-    @WithMockUser
     void shouldGetCourseById() throws Exception {
         when(courseService.getCourseById("course123")).thenReturn(Optional.of(validCourse));
 
@@ -96,7 +90,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should return 404 when course not found")
-    @WithMockUser
     void shouldReturn404WhenCourseNotFound() throws Exception {
         when(courseService.getCourseById("nonexistent")).thenReturn(Optional.empty());
 
@@ -106,7 +99,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should create course with valid data")
-    @WithMockUser(authorities = "faculty")
     void shouldCreateCourseWithValidData() throws Exception {
         when(courseService.createCourse(any(Course.class))).thenReturn(validCourse);
 
@@ -121,7 +113,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should update course")
-    @WithMockUser(authorities = "faculty")
     void shouldUpdateCourse() throws Exception {
         when(courseService.updateCourse(eq("course123"), any(Course.class))).thenReturn(validCourse);
 
@@ -135,7 +126,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should return 404 when updating non-existent course")
-    @WithMockUser(authorities = "faculty")
     void shouldReturn404WhenUpdatingNonExistentCourse() throws Exception {
         when(courseService.updateCourse(eq("nonexistent"), any(Course.class)))
                 .thenThrow(new RuntimeException("Course not found"));
@@ -148,7 +138,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should delete course")
-    @WithMockUser(authorities = "admin")
     void shouldDeleteCourse() throws Exception {
         mockMvc.perform(delete("/api/courses/course123"))
                 .andExpect(status().isOk());
@@ -158,7 +147,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should increment enrollment")
-    @WithMockUser
     void shouldIncrementEnrollment() throws Exception {
         Course enrolledCourse = new Course();
         enrolledCourse.setId(validCourse.getId());
@@ -176,7 +164,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should handle enrollment capacity exceeded")
-    @WithMockUser
     void shouldHandleEnrollmentCapacityExceeded() throws Exception {
         when(courseService.incrementEnrollment("course123"))
                 .thenThrow(new RuntimeException("Course is full"));
@@ -187,7 +174,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should decrement enrollment")
-    @WithMockUser
     void shouldDecrementEnrollment() throws Exception {
         validCourse.setEnrolled(5);
         Course unenrolledCourse = new Course();
@@ -206,7 +192,6 @@ class CourseControllerTest {
 
     @Test
     @DisplayName("Should handle decrement below zero")
-    @WithMockUser
     void shouldHandleDecrementBelowZero() throws Exception {
         when(courseService.decrementEnrollment("course123"))
                 .thenThrow(new RuntimeException("Cannot decrement below zero"));

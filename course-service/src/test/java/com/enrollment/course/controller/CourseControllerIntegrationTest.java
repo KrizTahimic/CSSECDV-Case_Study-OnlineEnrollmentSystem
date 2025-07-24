@@ -2,6 +2,7 @@ package com.enrollment.course.controller;
 
 import com.enrollment.course.model.Course;
 import com.enrollment.course.service.CourseService;
+import com.enrollment.course.repository.CourseRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,10 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import com.enrollment.course.config.TestMongoConfig;
 
 import java.util.Arrays;
 import java.util.List;
@@ -30,9 +33,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(TestMongoConfig.class)
 @TestPropertySource(properties = {
     "jwt.secret=testsecret123456789012345678901234567890",
-    "spring.data.mongodb.port=0"  // Disable MongoDB for tests
+    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration"
 })
 class CourseControllerIntegrationTest {
 
@@ -44,6 +48,9 @@ class CourseControllerIntegrationTest {
 
     @MockBean
     private CourseService courseService;
+    
+    @MockBean
+    private CourseRepository courseRepository;
 
     private Course validCourse;
 
