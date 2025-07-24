@@ -9,6 +9,7 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Key;
@@ -27,6 +28,7 @@ public class EnrollmentController {
     private String jwtSecret;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('student') or hasAuthority('Student') or hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
     public ResponseEntity<List<Enrollment>> getStudentEnrollmentsFromToken(@RequestHeader("Authorization") String authHeader) {
         try {
             // Extract studentId from JWT token
@@ -41,16 +43,19 @@ public class EnrollmentController {
     }
 
     @GetMapping("/student/{studentId}")
+    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or (hasAuthority('student') and #studentId == authentication.name) or (hasAuthority('Student') and #studentId == authentication.name)")
     public ResponseEntity<List<Enrollment>> getStudentEnrollments(@PathVariable String studentId) {
         return ResponseEntity.ok(enrollmentService.getStudentEnrollments(studentId));
     }
 
     @GetMapping("/course/{courseId}")
+    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor')")
     public ResponseEntity<List<Enrollment>> getCourseEnrollments(@PathVariable String courseId) {
         return ResponseEntity.ok(enrollmentService.getCourseEnrollments(courseId));
     }
     
     @PostMapping
+    @PreAuthorize("hasAuthority('student') or hasAuthority('Student')")
     public ResponseEntity<?> enrollStudentFromRequest(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String, Object> request) {
         try {
             // Extract courseId from request body
@@ -95,6 +100,7 @@ public class EnrollmentController {
     }
 
     @PostMapping("/student/{studentId}/course/{courseId}")
+    @PreAuthorize("hasAuthority('admin')")
     public ResponseEntity<Enrollment> enrollStudent(
             @PathVariable String studentId,
             @PathVariable String courseId) {
@@ -106,6 +112,7 @@ public class EnrollmentController {
     }
 
     @DeleteMapping("/student/{studentId}/course/{courseId}")
+    @PreAuthorize("hasAuthority('admin') or (hasAuthority('student') and #studentId == authentication.name) or (hasAuthority('Student') and #studentId == authentication.name)")
     public ResponseEntity<?> unenrollStudent(
             @PathVariable String studentId,
             @PathVariable String courseId) {

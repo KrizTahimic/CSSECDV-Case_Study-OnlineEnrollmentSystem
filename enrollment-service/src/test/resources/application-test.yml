@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: enrollment-service
+  security:
+    debug: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+  cloud:
+    discovery:
+      enabled: false
+
+jwt:
+  secret: testsecret123456789012345678901234567890
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+server:
+  port: 0
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.enrollment.enrollment: DEBUG
