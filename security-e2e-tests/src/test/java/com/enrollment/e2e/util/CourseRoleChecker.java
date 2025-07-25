@@ -14,11 +14,12 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 import java.security.Key;
+import java.util.UUID;
 
 /**
- * Checks JWT role to enforce security policies
+ * Checks JWT role for course management operations
  */
-public class JwtRoleChecker extends ResponseDefinitionTransformer {
+public class CourseRoleChecker extends ResponseDefinitionTransformer {
     
     private static final String SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -32,12 +33,15 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
         
-        // Only apply to grade submission endpoint
-        if (!request.getUrl().equals("/api/grades") || !request.getMethod().toString().equals("POST")) {
+        // Only apply to course creation endpoint
+        if (!request.getUrl().equals("/api/courses") || !request.getMethod().toString().equals("POST")) {
             return responseDefinition;
         }
         
+        System.out.println("CourseRoleChecker: Processing course creation request");
+        
         String authHeader = request.getHeader("Authorization");
+        System.out.println("CourseRoleChecker: Authorization header = " + authHeader);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return new ResponseDefinitionBuilder()
                 .withStatus(401)
@@ -47,6 +51,7 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
         }
         
         String token = authHeader.substring(7);
+        System.out.println("CourseRoleChecker: Token = " + token);
         
         try {
             Claims claims = Jwts.parserBuilder()
@@ -56,8 +61,9 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
                 .getBody();
             
             String role = claims.get("role", String.class);
+            System.out.println("CourseRoleChecker: Token email=" + claims.getSubject() + ", role=" + role);
             
-            // Students should not be able to submit grades
+            // Only faculty and admin can create courses
             if ("student".equals(role)) {
                 return new ResponseDefinitionBuilder()
                     .withStatus(403)
@@ -66,59 +72,53 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
                     .build();
             }
             
-            // Faculty and admin can submit grades
+            // Faculty and admin can create courses
             try {
                 JsonNode requestBody = objectMapper.readTree(request.getBodyAsString());
-                String studentEmail = requestBody.has("studentEmail") ? requestBody.get("studentEmail").asText() : "student@test.com";
-                String courseId = requestBody.has("courseId") ? requestBody.get("courseId").asText() : "course123";
-                double score = requestBody.has("score") ? requestBody.get("score").asDouble() : 85.0;
-                
-                // Calculate letter grade based on score
-                String letterGrade;
-                if (score >= 90) letterGrade = "A";
-                else if (score >= 80) letterGrade = "B";
-                else if (score >= 70) letterGrade = "C";
-                else if (score >= 60) letterGrade = "D";
-                else letterGrade = "F";
+                String courseCode = requestBody.has("courseCode") ? requestBody.get("courseCode").asText() : "CS301";
+                String courseName = requestBody.has("courseName") ? requestBody.get("courseName").asText() : "Advanced Algorithms";
+                int capacity = requestBody.has("capacity") ? requestBody.get("capacity").asInt() : 30;
                 
                 return new ResponseDefinitionBuilder()
-                    .withStatus(200)
+                    .withStatus(201)
                     .withHeader("Content-Type", "application/json")
                     .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"" + studentEmail + "\"," +
-                        "\"courseId\":\"" + courseId + "\"," +
-                        "\"score\":" + score + "," +
-                        "\"letterGrade\":\"" + letterGrade + "\"" +
+                        "\"id\":\"" + UUID.randomUUID().toString() + "\"," +
+                        "\"courseCode\":\"" + courseCode + "\"," +
+                        "\"courseName\":\"" + courseName + "\"," +
+                        "\"capacity\":" + capacity + "," +
+                        "\"enrolled\":0" +
                         "}")
                     .build();
             } catch (Exception e) {
                 return new ResponseDefinitionBuilder()
-                    .withStatus(200)
+                    .withStatus(201)
                     .withHeader("Content-Type", "application/json")
                     .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"student@test.com\"," +
-                        "\"courseId\":\"course123\"," +
-                        "\"score\":85.0," +
-                        "\"letterGrade\":\"B\"" +
+                        "\"id\":\"" + UUID.randomUUID().toString() + "\"," +
+                        "\"courseCode\":\"CS301\"," +
+                        "\"courseName\":\"Advanced Algorithms\"," +
+                        "\"capacity\":30," +
+                        "\"enrolled\":0" +
                         "}")
                     .build();
             }
                 
         } catch (Exception e) {
             // Invalid token
+            System.err.println("CourseRoleChecker: Error parsing token - " + e.getMessage());
+            e.printStackTrace();
             return new ResponseDefinitionBuilder()
                 .withStatus(403)
                 .withHeader("Content-Type", "application/json")
-                .withBody("{\"error\":\"Invalid token\"}")
+                .withBody("{\"error\":\"Invalid token: " + e.getMessage() + "\"}")
                 .build();
         }
     }
     
     @Override
     public String getName() {
-        return "jwt-role-checker";
+        return "course-role-checker";
     }
     
     @Override

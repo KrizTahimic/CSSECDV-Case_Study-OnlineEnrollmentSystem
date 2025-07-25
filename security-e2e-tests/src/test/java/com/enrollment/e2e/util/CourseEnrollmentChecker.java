@@ -1,6 +1,5 @@
 package com.enrollment.e2e.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.common.FileSource;
@@ -14,14 +13,30 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 import java.security.Key;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Checks JWT role to enforce security policies
+ * Checks JWT role for course enrollment viewing operations
  */
-public class JwtRoleChecker extends ResponseDefinitionTransformer {
+public class CourseEnrollmentChecker extends ResponseDefinitionTransformer {
     
     private static final String SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    
+    // Track enrollments for courses
+    private static final Map<String, List<Map<String, String>>> courseEnrollments = new HashMap<>();
+    
+    public static void addEnrollment(String courseId, String studentEmail) {
+        courseEnrollments.computeIfAbsent(courseId, k -> new ArrayList<>())
+            .add(Map.of("studentEmail", studentEmail, "courseId", courseId, "status", "ENROLLED"));
+    }
+    
+    public static void clearEnrollments() {
+        courseEnrollments.clear();
+    }
     
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET);
@@ -32,8 +47,9 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
         
-        // Only apply to grade submission endpoint
-        if (!request.getUrl().equals("/api/grades") || !request.getMethod().toString().equals("POST")) {
+        // Apply to course enrollment viewing
+        if (!request.getUrl().matches("/api/enrollments/course/[a-zA-Z0-9-]+") || 
+            !request.getMethod().toString().equals("GET")) {
             return responseDefinition;
         }
         
@@ -47,6 +63,7 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
         }
         
         String token = authHeader.substring(7);
+        String courseId = request.getUrl().replaceAll("/api/enrollments/course/", "");
         
         try {
             Claims claims = Jwts.parserBuilder()
@@ -57,8 +74,8 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
             
             String role = claims.get("role", String.class);
             
-            // Students should not be able to submit grades
-            if ("student".equals(role)) {
+            // Only faculty and admin can view course enrollments
+            if (!"faculty".equals(role) && !"admin".equals(role)) {
                 return new ResponseDefinitionBuilder()
                     .withStatus(403)
                     .withHeader("Content-Type", "application/json")
@@ -66,43 +83,21 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
                     .build();
             }
             
-            // Faculty and admin can submit grades
+            // Return enrollments for the course
+            List<Map<String, String>> enrollments = courseEnrollments.getOrDefault(courseId, new ArrayList<>());
+            
             try {
-                JsonNode requestBody = objectMapper.readTree(request.getBodyAsString());
-                String studentEmail = requestBody.has("studentEmail") ? requestBody.get("studentEmail").asText() : "student@test.com";
-                String courseId = requestBody.has("courseId") ? requestBody.get("courseId").asText() : "course123";
-                double score = requestBody.has("score") ? requestBody.get("score").asDouble() : 85.0;
-                
-                // Calculate letter grade based on score
-                String letterGrade;
-                if (score >= 90) letterGrade = "A";
-                else if (score >= 80) letterGrade = "B";
-                else if (score >= 70) letterGrade = "C";
-                else if (score >= 60) letterGrade = "D";
-                else letterGrade = "F";
-                
+                String json = objectMapper.writeValueAsString(enrollments);
                 return new ResponseDefinitionBuilder()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"" + studentEmail + "\"," +
-                        "\"courseId\":\"" + courseId + "\"," +
-                        "\"score\":" + score + "," +
-                        "\"letterGrade\":\"" + letterGrade + "\"" +
-                        "}")
+                    .withBody(json)
                     .build();
             } catch (Exception e) {
                 return new ResponseDefinitionBuilder()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"student@test.com\"," +
-                        "\"courseId\":\"course123\"," +
-                        "\"score\":85.0," +
-                        "\"letterGrade\":\"B\"" +
-                        "}")
+                    .withBody("[]")
                     .build();
             }
                 
@@ -118,11 +113,11 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
     
     @Override
     public String getName() {
-        return "jwt-role-checker";
+        return "course-enrollment-checker";
     }
     
     @Override
     public boolean applyGlobally() {
-        return false;
+        return true;
     }
 }

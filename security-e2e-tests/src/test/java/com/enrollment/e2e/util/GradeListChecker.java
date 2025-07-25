@@ -1,7 +1,5 @@
 package com.enrollment.e2e.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.extension.Parameters;
@@ -16,12 +14,11 @@ import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 
 /**
- * Checks JWT role to enforce security policies
+ * Checks JWT role for grade list operations (faculty/admin only)
  */
-public class JwtRoleChecker extends ResponseDefinitionTransformer {
+public class GradeListChecker extends ResponseDefinitionTransformer {
     
     private static final String SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
-    private static final ObjectMapper objectMapper = new ObjectMapper();
     
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET);
@@ -32,8 +29,9 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
         
-        // Only apply to grade submission endpoint
-        if (!request.getUrl().equals("/api/grades") || !request.getMethod().toString().equals("POST")) {
+        // Apply to all grades endpoint
+        if (!request.getUrl().equals("/api/grades") || 
+            !request.getMethod().toString().equals("GET")) {
             return responseDefinition;
         }
         
@@ -57,7 +55,7 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
             
             String role = claims.get("role", String.class);
             
-            // Students should not be able to submit grades
+            // Only faculty and admin can view all grades
             if ("student".equals(role)) {
                 return new ResponseDefinitionBuilder()
                     .withStatus(403)
@@ -66,45 +64,8 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
                     .build();
             }
             
-            // Faculty and admin can submit grades
-            try {
-                JsonNode requestBody = objectMapper.readTree(request.getBodyAsString());
-                String studentEmail = requestBody.has("studentEmail") ? requestBody.get("studentEmail").asText() : "student@test.com";
-                String courseId = requestBody.has("courseId") ? requestBody.get("courseId").asText() : "course123";
-                double score = requestBody.has("score") ? requestBody.get("score").asDouble() : 85.0;
-                
-                // Calculate letter grade based on score
-                String letterGrade;
-                if (score >= 90) letterGrade = "A";
-                else if (score >= 80) letterGrade = "B";
-                else if (score >= 70) letterGrade = "C";
-                else if (score >= 60) letterGrade = "D";
-                else letterGrade = "F";
-                
-                return new ResponseDefinitionBuilder()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"" + studentEmail + "\"," +
-                        "\"courseId\":\"" + courseId + "\"," +
-                        "\"score\":" + score + "," +
-                        "\"letterGrade\":\"" + letterGrade + "\"" +
-                        "}")
-                    .build();
-            } catch (Exception e) {
-                return new ResponseDefinitionBuilder()
-                    .withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("{" +
-                        "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
-                        "\"studentEmail\":\"student@test.com\"," +
-                        "\"courseId\":\"course123\"," +
-                        "\"score\":85.0," +
-                        "\"letterGrade\":\"B\"" +
-                        "}")
-                    .build();
-            }
+            // Faculty and admin can view all grades
+            return responseDefinition;
                 
         } catch (Exception e) {
             // Invalid token
@@ -118,7 +79,7 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
     
     @Override
     public String getName() {
-        return "jwt-role-checker";
+        return "grade-list-checker";
     }
     
     @Override

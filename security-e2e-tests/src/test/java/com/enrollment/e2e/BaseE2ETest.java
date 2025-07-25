@@ -195,7 +195,11 @@ public abstract class BaseE2ETest {
                     .extract()
                     .as(Map.class);
         
-        return (String) response.get("token");
+        String token = (String) response.get("token");
+        if (token == null) {
+            System.err.println("ERROR: No token in login response for " + email + ": " + response);
+        }
+        return token;
     }
     
     /**

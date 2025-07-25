@@ -27,7 +27,7 @@ public class ServiceMockFactory {
             WireMockConfiguration.options()
                 .port(port)
                 .bindAddress("0.0.0.0")
-                .extensions(new ResponseTemplateTransformer(true), new LoginAttemptTracker(), new LoginTracker(), new ReauthTracker(), new PasswordChangeTransformer())
+                .extensions(new ResponseTemplateTransformer(true), new LoginAttemptTracker(), new LoginTracker(), new ReauthTracker(), new PasswordChangeTransformer(), new LoginTokenGenerator(), new RegistrationTracker())
         );
         
         wireMockServer.start();
@@ -137,7 +137,7 @@ public class ServiceMockFactory {
             .willReturn(aResponse()
                 .withStatus(201)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template", "login-attempt-tracker", "login-tracker")
+                .withTransformers("response-template", "login-attempt-tracker", "login-tracker", "registration-tracker")
                 .withBody("{" +
                     "\"email\":\"{{jsonPath request.body '$.email'}}\"," +
                     "\"role\":\"{{jsonPath request.body '$.role'}}\"," +
@@ -145,65 +145,16 @@ public class ServiceMockFactory {
                     "\"lastName\":\"{{jsonPath request.body '$.lastName'}}\"" +
                     "}")));
         
-        // Login endpoint - success with specific credentials
+        // Login endpoint - let's use a simpler approach with the transformer
         stubFor(post(urlEqualTo("/api/auth/login"))
-            .withRequestBody(matchingJsonPath("$.email", matching(".*@test.com")))
-            .withRequestBody(matchingJsonPath("$.password", equalTo("SecurePass123!")))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template", "login-attempt-tracker", "login-tracker")
-                .withBody("{" +
-                    "\"token\":\"" + generateMockToken() + "\"," +
-                    "\"email\":\"{{jsonPath request.body '$.email'}}\"," +
-                    "\"role\":\"student\"," +
-                    "\"lastLoginTime\":null," +
-                    "\"lastLoginIP\":null" +
-                    "}")));
+                .withTransformers("login-token-generator")
+                .withBody("{\"placeholder\":\"will be replaced by transformer\"}")));
         
-        // Login endpoint - success for faculty
-        stubFor(post(urlEqualTo("/api/auth/login"))
-            .withRequestBody(matchingJsonPath("$.email", equalTo("faculty@test.com")))
-            .withRequestBody(matchingJsonPath("$.password", equalTo("SecurePass123!")))
-            .atPriority(1)
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template", "login-attempt-tracker", "login-tracker")
-                .withBody("{" +
-                    "\"token\":\"" + JwtTestUtil.generateToken("faculty@test.com", "faculty") + "\"," +
-                    "\"email\":\"faculty@test.com\"," +
-                    "\"role\":\"faculty\"," +
-                    "\"lastLoginTime\":null," +
-                    "\"lastLoginIP\":null" +
-                    "}")));
-        
-        // Login endpoint - success for admin
-        stubFor(post(urlEqualTo("/api/auth/login"))
-            .withRequestBody(matchingJsonPath("$.email", equalTo("admin@test.com")))
-            .withRequestBody(matchingJsonPath("$.password", equalTo("SecurePass123!")))
-            .atPriority(1)
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template", "login-attempt-tracker", "login-tracker")
-                .withBody("{" +
-                    "\"token\":\"" + JwtTestUtil.generateToken("admin@test.com", "admin") + "\"," +
-                    "\"email\":\"admin@test.com\"," +
-                    "\"role\":\"admin\"," +
-                    "\"lastLoginTime\":null," +
-                    "\"lastLoginIP\":null" +
-                    "}")));
-        
-        // Login endpoint - failure (generic for all other cases)
-        stubFor(post(urlEqualTo("/api/auth/login"))
-            .atPriority(5)
-            .willReturn(aResponse()
-                .withStatus(401)
-                .withHeader("Content-Type", "application/json")
-                .withTransformers("login-attempt-tracker")
-                .withBody("{\"error\":\"Invalid username and/or password\"}")));
+        // Login endpoint - failure will be handled by LoginTokenGenerator for invalid credentials
         
         // Re-authenticate endpoint - requires auth
         stubFor(post(urlEqualTo("/api/auth/reauthenticate"))
@@ -247,7 +198,7 @@ public class ServiceMockFactory {
             WireMockConfiguration.options()
                 .port(port)
                 .bindAddress("0.0.0.0")
-                .extensions(new ResponseTemplateTransformer(true))
+                .extensions(new ResponseTemplateTransformer(true), new InvalidTokenChecker(), new CourseRoleChecker(), new CourseUpdateChecker(), new CourseCapacityTracker())
         );
         
         wireMockServer.start();
@@ -283,13 +234,14 @@ public class ServiceMockFactory {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"error\":\"Invalid input data provided\"}")));
         
-        // Create course (faculty/admin only) - requires auth
+        // Create course (faculty/admin only) - requires auth and role check
         stubFor(post(urlEqualTo("/api/courses"))
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(201)
                 .withHeader("Content-Type", "application/json")
+                .withTransformers("course-role-checker")
                 .withBody("{" +
                     "\"id\":\"" + UUID.randomUUID().toString() + "\"," +
                     "\"code\":\"CS301\"," +
@@ -306,6 +258,16 @@ public class ServiceMockFactory {
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"id\":\"1\",\"code\":\"CS101\",\"name\":\"Intro to CS\",\"capacity\":30,\"enrolled\":15}")));
+        
+        // Update course - requires auth
+        stubFor(put(urlPathMatching("/api/courses/[a-zA-Z0-9-]+"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withTransformers("course-update-checker")
+                .withBody("{\"message\":\"Course updated successfully\"}")));
         
         // Update course capacity - requires auth
         stubFor(put(urlPathMatching("/api/courses/[a-zA-Z0-9-]+/capacity"))
@@ -344,7 +306,7 @@ public class ServiceMockFactory {
             WireMockConfiguration.options()
                 .port(port)
                 .bindAddress("0.0.0.0")
-                .extensions(new ResponseTemplateTransformer(true))
+                .extensions(new ResponseTemplateTransformer(true), new EnrollmentRoleChecker(), new EnrollmentCapacityChecker(), new EnrollmentAdminChecker(), new CourseEnrollmentChecker(), new EnrollmentDropChecker())
         );
         
         wireMockServer.start();
@@ -368,14 +330,14 @@ public class ServiceMockFactory {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"error\":\"Course is full\"}")));
         
-        // Enroll in course - requires auth
+        // Enroll in course - requires auth and capacity check
         stubFor(post(urlEqualTo("/api/enrollments"))
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(201)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template", "login-attempt-tracker", "login-tracker")
+                .withTransformers("response-template", "enrollment-capacity-checker")
                 .withBody("{" +
                     "\"id\":\"{{randomValue type='UUID'}}\"," +
                     "\"studentId\":\"{{jsonPath request.body '$.studentId'}}\"," +
@@ -387,20 +349,32 @@ public class ServiceMockFactory {
         // Get all enrollments - admin/faculty only
         stubFor(get(urlEqualTo("/api/enrollments"))
             .withHeader("Authorization", matching("Bearer .*"))
-            .atPriority(0)
+            .atPriority(1)
             .willReturn(aResponse()
-                .withStatus(403)
+                .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withBody("{\"error\":\"Access denied\"}")));
+                .withTransformers("enrollment-admin-checker")
+                .withBody("[]")));
         
-        // Get student enrollments - requires auth
-        stubFor(get(urlPathMatching("/api/enrollments/student/[a-zA-Z0-9@.-]+"))
+        // Get student enrollments - requires auth and role check
+        stubFor(get(urlPathMatching("/api/enrollments/student/[a-zA-Z0-9@.%-]+"))
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withBody("[]")));
+                .withTransformers("enrollment-role-checker")
+                .withBody("[]")));  // For now, return empty - in real system would have actual enrollments
+        
+        // Get course enrollments - faculty/admin only
+        stubFor(get(urlPathMatching("/api/enrollments/course/[a-zA-Z0-9-]+"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withTransformers("course-enrollment-checker")
+                .withBody("[]")));  // Transformer will provide the actual enrollments
         
         // Drop course - requires auth
         stubFor(delete(urlPathMatching("/api/enrollments/[a-zA-Z0-9-]+"))
@@ -409,6 +383,7 @@ public class ServiceMockFactory {
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
+                .withTransformers("enrollment-drop-checker")
                 .withBody("{\"message\":\"Course dropped successfully\"}")));
         
         // Default 401 for all enrollment endpoints without auth
@@ -430,7 +405,7 @@ public class ServiceMockFactory {
             WireMockConfiguration.options()
                 .port(port)
                 .bindAddress("0.0.0.0")
-                .extensions(new ResponseTemplateTransformer(true), new JwtRoleChecker())
+                .extensions(new ResponseTemplateTransformer(true), new JwtRoleChecker(), new GradeAccessChecker(), new GradeListChecker(), new GradeDeleteChecker())
         );
         
         wireMockServer.start();
@@ -444,29 +419,41 @@ public class ServiceMockFactory {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"status\":\"UP\"}")));
         
-        // Submit grade - allow all authenticated users for mock flexibility
+        // Submit grade - requires faculty/admin role
         stubFor(post(urlEqualTo("/api/grades"))
-            .withHeader("Authorization", matching("Bearer .*"))
-            .atPriority(1)
-            .willReturn(aResponse()
-                .withStatus(201)
-                .withHeader("Content-Type", "application/json")
-                .withTransformers("response-template")
-                .withBody("{" +
-                    "\"id\":\"{{randomValue type='UUID'}}\"," +
-                    "\"studentId\":\"{{jsonPath request.body '$.studentId'}}\"," +
-                    "\"courseId\":\"{{jsonPath request.body '$.courseId'}}\"," +
-                    "\"grade\":\"{{jsonPath request.body '$.grade'}}\"" +
-                    "}")));
-        
-        // Get student grades - requires auth
-        stubFor(get(urlPathMatching("/api/grades/student/[a-zA-Z0-9@.-]+"))
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withBody("[]")));
+                .withTransformers("jwt-role-checker")
+                .withBody("{" +
+                    "\"id\":\"{{randomValue type='UUID'}}\"," +
+                    "\"studentEmail\":\"{{jsonPath request.body '$.studentEmail'}}\"," +
+                    "\"courseId\":\"{{jsonPath request.body '$.courseId'}}\"," +
+                    "\"score\":\"{{jsonPath request.body '$.score'}}\"," +
+                    "\"letterGrade\":\"B\"" +
+                    "}")));
+        
+        // Get student grades - requires auth and access control
+        stubFor(get(urlPathMatching("/api/grades/student/[a-zA-Z0-9@.%-]+"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withTransformers("grade-access-checker")
+                .withBody("[{\"id\":\"grade1\",\"score\":85.0,\"letterGrade\":\"B\"}]")));
+        
+        // Get all grades (faculty/admin only) - requires auth
+        stubFor(get(urlEqualTo("/api/grades"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withTransformers("grade-list-checker")
+                .withBody("[{\"id\":\"grade1\",\"score\":85.0,\"letterGrade\":\"B\"}]")));
         
         // Get course grades (faculty only) - requires auth
         stubFor(get(urlPathMatching("/api/grades/course/[a-zA-Z0-9-]+"))
@@ -476,6 +463,25 @@ public class ServiceMockFactory {
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
                 .withBody("[]")));
+        
+        // Get student grades by course - requires auth
+        stubFor(get(urlPathMatching("/api/grades/student/[a-zA-Z0-9@.%-]+/course/[a-zA-Z0-9-]+"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"id\":\"grade1\",\"score\":90.0,\"letterGrade\":\"A\"}")));
+        
+        // Delete grade (admin only) - requires auth
+        stubFor(delete(urlPathMatching("/api/grades/[a-zA-Z0-9-]+"))
+            .withHeader("Authorization", matching("Bearer .*"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withTransformers("grade-delete-checker")
+                .withBody("{\"message\":\"Grade deleted successfully\"}")));
         
         // Default 401 for all grade endpoints without auth
         stubFor(any(urlMatching("/api/grades.*"))
