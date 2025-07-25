@@ -1,0 +1,46 @@
+spring:
+  data:
+    mongodb:
+      auto-index-creation: true
+  
+  redis:
+    timeout: 5000
+  
+  cloud:
+    discovery:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+
+# JWT Configuration
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 86400000 # 24 hours
+
+# Test Logging
+logging:
+  level:
+    com.enrollment: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Test timeouts
+test:
+  timeout:
+    default: 30s
+    long: 60s
+
+# Service URLs for testing
+services:
+  auth:
+    url: http://localhost:3001
+  course:
+    url: http://localhost:3002
+  enrollment:
+    url: http://localhost:3003
+  grade:
+    url: http://localhost:3004

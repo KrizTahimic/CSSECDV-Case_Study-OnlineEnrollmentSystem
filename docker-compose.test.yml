@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb-test
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - enrollment-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis-test
+    ports:
+      - "6379:6379"
+    networks:
+      - enrollment-network
+
+  # Eureka Service Discovery
+  eureka:
+    build:
+      context: .
+      dockerfile: Dockerfile.service-discovery
+    container_name: eureka-test
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - enrollment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth-service
+    container_name: auth-service-test
+    ports:
+      - "3001:3001"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/auth_service?authSource=admin
+      SPRING_REDIS_HOST: redis
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - mongodb
+      - redis
+      - eureka
+    networks:
+      - enrollment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Course Service
+  course-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.course-service
+    container_name: course-service-test
+    ports:
+      - "3002:3002"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/course_service?authSource=admin
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - mongodb
+      - eureka
+    networks:
+      - enrollment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Enrollment Service
+  enrollment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.enrollment-service
+    container_name: enrollment-service-test
+    ports:
+      - "3003:3003"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/enrollment_service?authSource=admin
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - mongodb
+      - eureka
+    networks:
+      - enrollment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Grade Service
+  grade-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.grade-service
+    container_name: grade-service-test
+    ports:
+      - "3004:3004"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/grade_service?authSource=admin
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - mongodb
+      - eureka
+    networks:
+      - enrollment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  enrollment-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

@@ -22,6 +22,7 @@
         <module>course-service</module>
         <module>enrollment-service</module>
         <module>grade-service</module>
+        <module>security-e2e-tests</module>
     </modules>
 
     <properties>
