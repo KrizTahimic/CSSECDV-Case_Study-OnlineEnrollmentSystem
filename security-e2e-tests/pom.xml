@@ -105,6 +105,14 @@
             <version>4.2.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- WireMock for service mocking -->
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8-standalone</artifactId>
+            <version>2.35.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -117,6 +125,10 @@
                         <include>**/*Test.java</include>
                         <include>**/*Tests.java</include>
                     </includes>
+                    <systemPropertyVariables>
+                        <!-- Default to mock profile for simple "mvn test" -->
+                        <e2e.test.profile>mock</e2e.test.profile>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

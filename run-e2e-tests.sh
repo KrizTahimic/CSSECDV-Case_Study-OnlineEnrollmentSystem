@@ -51,32 +51,62 @@ wait_for_service() {
 }
 
 # Parse command line arguments
-MODE="manual"
+PROFILE="hybrid"
 SKIP_BUILD=false
+TEST_FILTER=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --docker)
-            MODE="docker"
-            shift
+        --profile)
+            PROFILE="$2"
+            shift 2
             ;;
         --mock)
-            MODE="mock"
+            PROFILE="mock"
+            shift
+            ;;
+        --integration)
+            PROFILE="integration"
+            shift
+            ;;
+        --hybrid)
+            PROFILE="hybrid"
+            shift
+            ;;
+        --manual)
+            PROFILE="manual"
             shift
             ;;
         --skip-build)
             SKIP_BUILD=true
             shift
             ;;
+        --test)
+            TEST_FILTER="-Dtest=$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [options]"
             echo "Options:"
-            echo "  --docker     Start services using Docker Compose"
-            echo "  --mock       Run tests with mocked services (no real services needed)"
-            echo "  --skip-build Skip building services (use with --docker)"
-            echo "  --help       Show this help message"
+            echo "  --profile <name>   Set test profile (mock|integration|hybrid|manual)"
+            echo "  --mock             Use mock profile (WireMock for all services)"
+            echo "  --integration      Use integration profile (real services in containers)"
+            echo "  --hybrid           Use hybrid profile (infrastructure + mocks) [default]"
+            echo "  --manual           Use manual profile (services already running)"
+            echo "  --skip-build       Skip building services (for integration profile)"
+            echo "  --test <pattern>   Run specific test(s) matching pattern"
+            echo "  --help             Show this help message"
             echo ""
-            echo "Default mode: manual (expects services to be already running)"
+            echo "Profiles:"
+            echo "  mock         - Fast testing with WireMock, no containers needed"
+            echo "  integration  - Full E2E with all services in Docker containers"
+            echo "  hybrid       - MongoDB/Redis containers + WireMock services"
+            echo "  manual       - Expects all services to be manually started"
+            echo ""
+            echo "Examples:"
+            echo "  $0 --mock                    # Quick security tests with mocks"
+            echo "  $0 --integration             # Full integration tests"
+            echo "  $0 --hybrid --test AuthenticationE2ETest  # Specific test with hybrid mode"
             exit 0
             ;;
         *)
@@ -87,12 +117,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "=== Online Enrollment System E2E Tests ==="
-echo "Mode: ${MODE}"
+echo "Profile: ${PROFILE}"
 echo ""
 
-# Handle different modes
-case $MODE in
-    docker)
+# Handle different profiles
+case $PROFILE in
+    integration)
         echo "Starting services with Docker Compose..."
         
         # Build services if not skipping
@@ -161,8 +191,13 @@ EOF
         ;;
         
     mock)
-        echo "Running tests with mocked services..."
-        echo "No real services required."
+        echo "Running tests with mocked services (WireMock)..."
+        echo "No real services or containers required."
+        ;;
+        
+    hybrid)
+        echo "Running tests with hybrid mode..."
+        echo "MongoDB and Redis will run in containers, services will be mocked."
         ;;
 esac
 
@@ -170,18 +205,30 @@ esac
 echo "Running E2E tests..."
 cd security-e2e-tests
 
-if [ "$MODE" = "mock" ]; then
-    # Run only mock tests
-    mvn test -Dtest=MockedE2ETest,TestInfrastructureTest
+# Run tests based on profile
+if [ -n "$TEST_FILTER" ]; then
+    # Run specific tests with profile
+    mvn test -De2e.test.profile=$PROFILE $TEST_FILTER
 else
-    # Run all E2E tests
-    mvn test
+    # Run tests based on profile
+    case $PROFILE in
+        mock)
+            mvn test -De2e.test.profile=mock -Dtest=MockedE2ETest,TestInfrastructureTest
+            ;;
+        integration)
+            mvn test -De2e.test.profile=integration -Dtest=AuthenticationE2ETest,AuthorizationE2ETest,SecurityAttackE2ETest,DataIntegrityE2ETest,FullServiceE2ETest
+            ;;
+        hybrid|manual)
+            # Run all tests
+            mvn test -De2e.test.profile=$PROFILE
+            ;;
+    esac
 fi
 
 TEST_RESULT=$?
 
-# Cleanup for docker mode
-if [ "$MODE" = "docker" ]; then
+# Cleanup for integration mode
+if [ "$PROFILE" = "integration" ]; then
     echo -e "\nStopping Docker services..."
     docker-compose -f ../docker-compose.test.yml down
 fi

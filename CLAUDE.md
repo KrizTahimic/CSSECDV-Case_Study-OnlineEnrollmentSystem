@@ -47,7 +47,21 @@ npm run preview
 # Run tests
 npm run test
 ```
+### Test 
+```bash
+# Quick mock tests
+./run-e2e-tests.sh --mock
 
+# Full integration tests
+./run-e2e-tests.sh --integration
+
+# Default hybrid mode
+./run-e2e-tests.sh
+
+cd security-e2e-tests && mvn test -De2e.test.profile=integration
+```
+
+  
 ## Service Startup Order
 
 Services must be started in this specific order:

@@ -153,7 +153,7 @@ public class AuthenticationE2ETest extends BaseE2ETest {
                     .post(AUTH_BASE_URL + CHANGE_PASSWORD_ENDPOINT)
                 .then()
                     .statusCode(403)
-                    .body("error", containsString("re-authentication"));
+                    .body("error", containsStringIgnoringCase("re-authentication"));
         
         // Re-authenticate
         RestAssured

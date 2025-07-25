@@ -1,52 +1,422 @@
 package com.enrollment.e2e;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-// import org.testcontainers.containers.DockerComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
+import com.enrollment.e2e.config.E2ETestProfile;
+import com.enrollment.e2e.util.ServiceContainerFactory;
+import com.enrollment.e2e.util.TestDataFactory;
+import io.restassured.RestAssured;
+import org.junit.jupiter.api.*;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.File;
-import java.time.Duration;
+import java.util.Map;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Full E2E test that would run all services using Docker Compose.
- * Note: This requires Docker images of your services to be built first.
+ * Full E2E test with real microservices running in Docker containers.
+ * This provides the most comprehensive testing but requires Docker images to be built.
  */
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@DisplayName("Full Service E2E Tests with Docker Compose")
-public class FullServiceE2ETest {
+@DisplayName("Full Service E2E Tests with Real Containers")
+public class FullServiceE2ETest extends BaseE2ETest {
     
-    // This would use your docker-compose.yml file to start all services
-    // Note: Requires docker-compose dependency which is not available in this version
-    // @Container
-    // private static DockerComposeContainer<?> environment = ...
-    
-    // For now, we'll document the approach
+    private static Map<String, GenericContainer<?>> serviceContainers;
+    private static Network serviceNetwork;
     
     @BeforeAll
-    void setup() {
-        System.out.println("Docker Compose environment started!");
-        System.out.println("All services should be accessible on their standard ports");
+    void setupFullEnvironment() {
+        // Only run these tests in integration profile
+        assumeTrue(TEST_PROFILE == E2ETestProfile.INTEGRATION,
+            "Full service tests only run in integration profile. Use --integration flag.");
+        
+        try {
+            System.out.println("=== Setting up Full Service Environment ===");
+            
+            // Create a dedicated network for services
+            serviceNetwork = Network.newNetwork();
+            
+            // Get MongoDB and Redis connection info from base containers
+            String mongoUri = String.format("mongodb://mongodb:27017/test_db");
+            String redisHost = "redis";
+            
+            // Create all service containers
+            serviceContainers = ServiceContainerFactory.createFullServiceEnvironment(
+                serviceNetwork, mongoUri, redisHost
+            );
+            
+            // Start containers in order
+            System.out.println("Starting Eureka...");
+            serviceContainers.get("eureka").start();
+            
+            System.out.println("Starting Auth Service...");
+            serviceContainers.get("auth").start();
+            
+            System.out.println("Starting Course Service...");
+            serviceContainers.get("course").start();
+            
+            System.out.println("Starting Enrollment Service...");
+            serviceContainers.get("enrollment").start();
+            
+            System.out.println("Starting Grade Service...");
+            serviceContainers.get("grade").start();
+            
+            // Update RestAssured to use mapped ports
+            updateServiceUrls();
+            
+            System.out.println("=== Full Service Environment Ready ===");
+            
+        } catch (Exception e) {
+            System.err.println("Failed to start service containers. Make sure Docker images are built:");
+            System.err.println("Run: mvn clean package && docker-compose build");
+            throw new IllegalStateException("Cannot start service containers", e);
+        }
+    }
+    
+    @AfterAll
+    void teardownFullEnvironment() {
+        if (serviceContainers != null) {
+            ServiceContainerFactory.stopContainers(serviceContainers);
+        }
+        if (serviceNetwork != null) {
+            serviceNetwork.close();
+        }
+    }
+    
+    private void updateServiceUrls() {
+        // Get mapped ports from containers
+        int eurekaPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("eureka"), 8761);
+        int authPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("auth"), 3001);
+        int coursePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("course"), 3002);
+        int enrollmentPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("enrollment"), 3003);
+        int gradePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("grade"), 3004);
+        
+        System.out.println("Service ports mapped:");
+        System.out.println("  Eureka: " + eurekaPort);
+        System.out.println("  Auth: " + authPort);
+        System.out.println("  Course: " + coursePort);
+        System.out.println("  Enrollment: " + enrollmentPort);
+        System.out.println("  Grade: " + gradePort);
     }
     
     @Test
-    @DisplayName("Should run authentication flow with all services")
-    void shouldRunAuthenticationFlow() {
-        // This test would run the actual authentication flow
-        // against the real services running in containers
+    @DisplayName("Should complete full authentication and authorization flow")
+    void shouldCompleteFullAuthAndAuthzFlow() {
+        // 1. Register a student
+        Map<String, Object> studentData = TestDataFactory.createStudentRegistration();
         
-        System.out.println("This test would:");
-        System.out.println("1. Register a user via auth-service on port 3001");
-        System.out.println("2. Login and get JWT token");
-        System.out.println("3. Use token to access other services");
-        System.out.println("4. Verify cross-service authentication works");
+        given()
+            .spec(createRequestSpec())
+            .body(studentData)
+        .when()
+            .post(AUTH_BASE_URL + REGISTER_ENDPOINT)
+        .then()
+            .statusCode(201)
+            .body("email", equalTo(studentData.get("email")))
+            .body("role", equalTo("student"));
         
-        // The actual test code would be similar to AuthenticationE2ETest
-        // but would run against real containerized services
+        // 2. Login and get token
+        String studentToken = given()
+            .spec(createRequestSpec())
+            .body(TestDataFactory.createLoginRequest(
+                (String) studentData.get("email"),
+                (String) studentData.get("password")
+            ))
+        .when()
+            .post(AUTH_BASE_URL + LOGIN_ENDPOINT)
+        .then()
+            .statusCode(200)
+            .body("token", notNullValue())
+            .extract()
+            .path("token");
+        
+        // 3. Register a faculty member
+        Map<String, Object> facultyData = TestDataFactory.createFacultyRegistration();
+        
+        given()
+            .spec(createRequestSpec())
+            .body(facultyData)
+        .when()
+            .post(AUTH_BASE_URL + REGISTER_ENDPOINT)
+        .then()
+            .statusCode(201);
+        
+        // 4. Faculty login
+        String facultyToken = given()
+            .spec(createRequestSpec())
+            .body(TestDataFactory.createLoginRequest(
+                (String) facultyData.get("email"),
+                (String) facultyData.get("password")
+            ))
+        .when()
+            .post(AUTH_BASE_URL + LOGIN_ENDPOINT)
+        .then()
+            .statusCode(200)
+            .extract()
+            .path("token");
+        
+        // 5. Faculty creates a course
+        Map<String, Object> courseData = TestDataFactory.createCourseData();
+        String courseId = given()
+            .spec(createAuthenticatedRequestSpec(facultyToken))
+            .body(courseData)
+        .when()
+            .post(COURSE_BASE_URL + "/api/courses")
+        .then()
+            .statusCode(201)
+            .body("code", equalTo(courseData.get("code")))
+            .body("name", equalTo(courseData.get("name")))
+            .extract()
+            .path("id");
+        
+        // 6. Student views courses
+        given()
+            .spec(createAuthenticatedRequestSpec(studentToken))
+        .when()
+            .get(COURSE_BASE_URL + "/api/courses")
+        .then()
+            .statusCode(200)
+            .body("$", hasSize(greaterThan(0)));
+        
+        // 7. Student enrolls in course
+        Map<String, Object> enrollmentData = Map.of(
+            "studentId", studentData.get("email"),
+            "courseId", courseId
+        );
+        
+        given()
+            .spec(createAuthenticatedRequestSpec(studentToken))
+            .body(enrollmentData)
+        .when()
+            .post(ENROLLMENT_BASE_URL + "/api/enrollments")
+        .then()
+            .statusCode(201)
+            .body("studentId", equalTo(studentData.get("email")))
+            .body("courseId", equalTo(courseId));
+        
+        // 8. Faculty submits grade
+        Map<String, Object> gradeData = Map.of(
+            "studentId", studentData.get("email"),
+            "courseId", courseId,
+            "grade", "A"
+        );
+        
+        given()
+            .spec(createAuthenticatedRequestSpec(facultyToken))
+            .body(gradeData)
+        .when()
+            .post(GRADE_BASE_URL + "/api/grades")
+        .then()
+            .statusCode(201)
+            .body("grade", equalTo("A"));
+        
+        // 9. Student views their grade
+        given()
+            .spec(createAuthenticatedRequestSpec(studentToken))
+        .when()
+            .get(GRADE_BASE_URL + "/api/grades/student/" + studentData.get("email"))
+        .then()
+            .statusCode(200)
+            .body("$", hasSize(1))
+            .body("[0].grade", equalTo("A"));
+    }
+    
+    @Test
+    @DisplayName("Should enforce cross-service security policies")
+    void shouldEnforceCrossServiceSecurity() {
+        // Create test users
+        Map<String, Object> student1 = TestDataFactory.createStudentRegistration();
+        Map<String, Object> student2 = TestDataFactory.createStudentRegistration();
+        
+        // Register both students
+        registerUser(student1);
+        registerUser(student2);
+        
+        // Get tokens
+        String student1Token = loginAndGetToken(
+            (String) student1.get("email"), 
+            (String) student1.get("password")
+        );
+        String student2Token = loginAndGetToken(
+            (String) student2.get("email"), 
+            (String) student2.get("password")
+        );
+        
+        // Student 1 tries to view Student 2's enrollments (should fail)
+        given()
+            .spec(createAuthenticatedRequestSpec(student1Token))
+        .when()
+            .get(ENROLLMENT_BASE_URL + "/api/enrollments/student/" + student2.get("email"))
+        .then()
+            .statusCode(403)
+            .body("error", containsString("access"));
+        
+        // Student tries to create a course (should fail)
+        given()
+            .spec(createAuthenticatedRequestSpec(student1Token))
+            .body(TestDataFactory.createCourseData())
+        .when()
+            .post(COURSE_BASE_URL + "/api/courses")
+        .then()
+            .statusCode(403)
+            .body("error", containsString("permission"));
+        
+        // Student tries to submit grades (should fail)
+        given()
+            .spec(createAuthenticatedRequestSpec(student1Token))
+            .body(Map.of(
+                "studentId", student2.get("email"),
+                "courseId", "some-course",
+                "grade", "F"
+            ))
+        .when()
+            .post(GRADE_BASE_URL + "/api/grades")
+        .then()
+            .statusCode(403);
+    }
+    
+    @Test
+    @DisplayName("Should handle service failures gracefully")
+    void shouldHandleServiceFailures() {
+        // This test demonstrates resilience when services fail
+        
+        // Get a valid token
+        Map<String, Object> userData = TestDataFactory.createStudentRegistration();
+        registerUser(userData);
+        String token = loginAndGetToken(
+            (String) userData.get("email"), 
+            (String) userData.get("password")
+        );
+        
+        // Stop enrollment service to simulate failure
+        System.out.println("Simulating enrollment service failure...");
+        serviceContainers.get("enrollment").stop();
+        
+        // Try to enroll (should fail gracefully)
+        given()
+            .spec(createAuthenticatedRequestSpec(token))
+            .body(Map.of(
+                "studentId", userData.get("email"),
+                "courseId", "test-course"
+            ))
+        .when()
+            .post(ENROLLMENT_BASE_URL + "/api/enrollments")
+        .then()
+            .statusCode(anyOf(is(500), is(503)))
+            .body("error", containsString("service"));
+        
+        // Restart enrollment service
+        System.out.println("Restarting enrollment service...");
+        serviceContainers.get("enrollment").start();
+        
+        // Wait for service to be healthy
+        waitSeconds(10);
+        
+        // Should work now
+        given()
+            .spec(createAuthenticatedRequestSpec(token))
+        .when()
+            .get(ENROLLMENT_BASE_URL + "/api/enrollments/student/" + userData.get("email"))
+        .then()
+            .statusCode(200);
+    }
+    
+    @Test
+    @DisplayName("Should maintain data consistency across services")
+    void shouldMaintainDataConsistency() {
+        // Test that data remains consistent across service boundaries
+        
+        // Create faculty and course
+        Map<String, Object> facultyData = TestDataFactory.createFacultyRegistration();
+        registerUser(facultyData);
+        String facultyToken = loginAndGetToken(
+            (String) facultyData.get("email"),
+            (String) facultyData.get("password")
+        );
+        
+        // Create course with specific capacity
+        Map<String, Object> courseData = TestDataFactory.createCourseData();
+        courseData.put("capacity", 2); // Only 2 spots
+        
+        String courseId = given()
+            .spec(createAuthenticatedRequestSpec(facultyToken))
+            .body(courseData)
+        .when()
+            .post(COURSE_BASE_URL + "/api/courses")
+        .then()
+            .statusCode(201)
+            .extract()
+            .path("id");
+        
+        // Create 3 students
+        String[] studentTokens = new String[3];
+        String[] studentEmails = new String[3];
+        
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> studentData = TestDataFactory.createStudentRegistration();
+            registerUser(studentData);
+            studentEmails[i] = (String) studentData.get("email");
+            studentTokens[i] = loginAndGetToken(studentEmails[i], (String) studentData.get("password"));
+        }
+        
+        // First two students should enroll successfully
+        for (int i = 0; i < 2; i++) {
+            given()
+                .spec(createAuthenticatedRequestSpec(studentTokens[i]))
+                .body(Map.of(
+                    "studentId", studentEmails[i],
+                    "courseId", courseId
+                ))
+            .when()
+                .post(ENROLLMENT_BASE_URL + "/api/enrollments")
+            .then()
+                .statusCode(201);
+        }
+        
+        // Third student should fail (course full)
+        given()
+            .spec(createAuthenticatedRequestSpec(studentTokens[2]))
+            .body(Map.of(
+                "studentId", studentEmails[2],
+                "courseId", courseId
+            ))
+        .when()
+            .post(ENROLLMENT_BASE_URL + "/api/enrollments")
+        .then()
+            .statusCode(400)
+            .body("error", containsString("full"));
+        
+        // Verify course shows correct enrollment count
+        given()
+            .spec(createAuthenticatedRequestSpec(facultyToken))
+        .when()
+            .get(COURSE_BASE_URL + "/api/courses/" + courseId)
+        .then()
+            .statusCode(200)
+            .body("enrolled", equalTo(2))
+            .body("capacity", equalTo(2));
+    }
+    
+    @Test
+    @DisplayName("Should verify service discovery integration")
+    void shouldVerifyServiceDiscovery() {
+        // Check that all services are registered with Eureka
+        
+        given()
+        .when()
+            .get(EUREKA_URL + "/eureka/apps")
+        .then()
+            .statusCode(200)
+            .body("applications.application", hasSize(greaterThanOrEqualTo(4)))
+            .body("applications.application.name", hasItems(
+                "AUTH-SERVICE",
+                "COURSE-SERVICE", 
+                "ENROLLMENT-SERVICE",
+                "GRADE-SERVICE"
+            ));
     }
 }

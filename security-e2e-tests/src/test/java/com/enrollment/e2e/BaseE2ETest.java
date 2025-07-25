@@ -1,9 +1,13 @@
 package com.enrollment.e2e;
 
+import com.enrollment.e2e.config.E2ETestProfile;
+import com.enrollment.e2e.util.ServiceMockFactory;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +29,12 @@ import java.util.Map;
 @SpringBootTest(classes = TestApplication.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 public abstract class BaseE2ETest {
+    
+    // Test profile
+    protected static final E2ETestProfile TEST_PROFILE = E2ETestProfile.getActiveProfile();
+    
+    // Mock servers (used in MOCK and HYBRID profiles)
+    protected static Map<String, WireMockServer> mockServers;
     
     // Network for all containers
     private static final Network network = Network.newNetwork();
@@ -87,6 +97,46 @@ public abstract class BaseE2ETest {
     @BeforeAll
     static void setup() {
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+        
+        System.out.println("=== E2E Test Configuration ===");
+        System.out.println("Active Profile: " + TEST_PROFILE.getProfileName());
+        System.out.println("Description: " + TEST_PROFILE.getDescription());
+        System.out.println();
+        
+        // Setup mock servers if needed
+        if (TEST_PROFILE.shouldUseMocks()) {
+            System.out.println("Starting mock services...");
+            mockServers = ServiceMockFactory.createFullMockEnvironment();
+            System.out.println("Mock services started successfully");
+        }
+        
+        // For MANUAL mode, verify services are running
+        if (TEST_PROFILE == E2ETestProfile.MANUAL) {
+            System.out.println("Manual mode - expecting services to be already running");
+            verifyManualServices();
+        }
+    }
+    
+    @AfterAll
+    static void teardown() {
+        // Cleanup mock servers if they were created
+        if (mockServers != null) {
+            System.out.println("Shutting down mock services...");
+            ServiceMockFactory.shutdownMockServers(
+                mockServers.values().toArray(new WireMockServer[0])
+            );
+        }
+    }
+    
+    private static void verifyManualServices() {
+        // In manual mode, check if services are accessible
+        // This is just a warning, not a failure
+        try {
+            RestAssured.get(AUTH_BASE_URL + "/actuator/health");
+            System.out.println("✓ Auth service is accessible");
+        } catch (Exception e) {
+            System.err.println("⚠ Auth service not accessible at " + AUTH_BASE_URL);
+        }
     }
     
     @BeforeEach

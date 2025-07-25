@@ -1,0 +1,6 @@
+{
+  "email": "{{request.body.email}}",
+  "role": "student",
+  "firstName": "{{request.body.firstName}}",
+  "lastName": "{{request.body.lastName}}"
+}
