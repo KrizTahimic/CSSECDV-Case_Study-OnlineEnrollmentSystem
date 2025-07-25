@@ -430,7 +430,7 @@ public class ServiceMockFactory {
             WireMockConfiguration.options()
                 .port(port)
                 .bindAddress("0.0.0.0")
-                .extensions(new ResponseTemplateTransformer(true))
+                .extensions(new ResponseTemplateTransformer(true), new JwtRoleChecker())
         );
         
         wireMockServer.start();
@@ -444,27 +444,19 @@ public class ServiceMockFactory {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"status\":\"UP\"}")));
         
-        // Submit grade - student not allowed
-        stubFor(post(urlEqualTo("/api/grades"))
-            .withHeader("Authorization", matching("Bearer .*"))
-            .atPriority(0)
-            .willReturn(aResponse()
-                .withStatus(403)
-                .withHeader("Content-Type", "application/json")
-                .withBody("{\"error\":\"Access denied\"}")));
-        
-        // Submit grade (faculty only) - requires auth
+        // Submit grade - allow all authenticated users for mock flexibility
         stubFor(post(urlEqualTo("/api/grades"))
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(201)
                 .withHeader("Content-Type", "application/json")
+                .withTransformers("response-template")
                 .withBody("{" +
-                    "\"id\":\"" + UUID.randomUUID().toString() + "\"," +
-                    "\"studentId\":\"student@test.com\"," +
-                    "\"courseId\":\"course123\"," +
-                    "\"grade\":\"A\"" +
+                    "\"id\":\"{{randomValue type='UUID'}}\"," +
+                    "\"studentId\":\"{{jsonPath request.body '$.studentId'}}\"," +
+                    "\"courseId\":\"{{jsonPath request.body '$.courseId'}}\"," +
+                    "\"grade\":\"{{jsonPath request.body '$.grade'}}\"" +
                     "}")));
         
         // Get student grades - requires auth
@@ -607,6 +599,26 @@ public class ServiceMockFactory {
     }
     
     /**
+     * Adds grade-specific security scenarios for SecurityAttackE2ETest
+     */
+    public static void addGradeSecurityScenarios(WireMockServer server, int port) {
+        WireMock.configureFor("localhost", port);
+        
+        // Create a transformer that checks JWT role for grade submission
+        server.addStubMapping(
+            post(urlEqualTo("/api/grades"))
+                .withHeader("Authorization", matching("Bearer .*"))
+                .atPriority(0)
+                .willReturn(aResponse()
+                    .withTransformers("jwt-role-checker")
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"message\":\"Role checked\"}")
+                ).build()
+        );
+    }
+    
+    /**
      * Shuts down all mock servers
      */
     public static void shutdownMockServers(WireMockServer... servers) {
@@ -639,6 +651,7 @@ public class ServiceMockFactory {
         addSecurityScenarios(servers.get("course"), 3002);
         addSecurityScenarios(servers.get("enrollment"), 3003);
         addSecurityScenarios(servers.get("grade"), 3004);
+        addGradeSecurityScenarios(servers.get("grade"), 3004);
         
         return servers;
     }
