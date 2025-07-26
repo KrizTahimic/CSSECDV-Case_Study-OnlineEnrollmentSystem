@@ -46,6 +46,11 @@ public class AuthorizationE2ETest extends BaseE2ETest {
         studentToken = loginAndGetToken(studentEmail, (String) studentData.get("password"));
         facultyToken = loginAndGetToken(facultyEmail, (String) facultyData.get("password"));
         adminToken = loginAndGetToken(adminEmail, (String) adminData.get("password"));
+        
+        System.out.println("=== Token Debug Info ===");
+        System.out.println("Student token: " + (studentToken != null ? "Present (length: " + studentToken.length() + ")" : "NULL"));
+        System.out.println("Faculty token: " + (facultyToken != null ? "Present (length: " + facultyToken.length() + ")" : "NULL"));
+        System.out.println("Admin token: " + (adminToken != null ? "Present (length: " + adminToken.length() + ")" : "NULL"));
     }
     
     @Test

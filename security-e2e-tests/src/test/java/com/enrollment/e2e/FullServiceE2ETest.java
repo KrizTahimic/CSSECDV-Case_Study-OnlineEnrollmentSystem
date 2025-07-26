@@ -50,34 +50,33 @@ public class FullServiceE2ETest extends BaseE2ETest {
                 network, mongoUri, redisHost
             );
             
-            // Start containers in order
-            System.out.println("Starting Eureka...");
-            serviceContainers.get("eureka").start();
-            System.out.println("Eureka started, waiting for it to be ready...");
-            Thread.sleep(10000); // Give Eureka time to fully initialize
+            // Start containers in order with error handling
+            startServiceContainer("eureka", serviceContainers.get("eureka"), 10000);
             
-            System.out.println("Starting Auth Service...");
-            serviceContainers.get("auth").start();
-            System.out.println("Waiting for Auth Service to fully initialize...");
-            Thread.sleep(20000); // Wait longer for Redis connection and Eureka registration
+            // Update service URLs first to get proper ports
+            updateServiceUrls();
             
-            System.out.println("Starting Course Service...");
-            serviceContainers.get("course").start();
-            Thread.sleep(5000); // Wait for registration with Eureka
+            // Now verify health with correct URL
+            verifyServiceHealth(EUREKA_URL + "/actuator/health", "Eureka");
             
-            System.out.println("Starting Enrollment Service...");
-            serviceContainers.get("enrollment").start();
-            Thread.sleep(5000); // Wait for registration with Eureka
+            startServiceContainer("auth", serviceContainers.get("auth"), 20000);
+            // Auth service needs extra time for Redis connection
+            System.out.println("Waiting for Auth Service Redis connection...");
+            Thread.sleep(10000);
             
-            System.out.println("Starting Grade Service...");
-            serviceContainers.get("grade").start();
-            Thread.sleep(10000); // Wait for grade service to register
+            startServiceContainer("course", serviceContainers.get("course"), 10000);
+            startServiceContainer("enrollment", serviceContainers.get("enrollment"), 10000);
+            startServiceContainer("grade", serviceContainers.get("grade"), 10000);
             
             System.out.println("All services started. Waiting for complete initialization...");
-            Thread.sleep(10000); // Additional wait for all services to stabilize
+            Thread.sleep(5000); // Additional wait for all services to stabilize
             
-            // Update RestAssured to use mapped ports
+            // Update all service URLs now that all containers are started
+            System.out.println("Service ports mapped:");
             updateServiceUrls();
+            
+            // Verify all services are registered with Eureka
+            verifyServicesRegistered();
             
             System.out.println("=== Full Service Environment Ready ===");
             
@@ -96,26 +95,108 @@ public class FullServiceE2ETest extends BaseE2ETest {
     }
     
     private void updateServiceUrls() {
-        // Get mapped ports from containers
-        int eurekaPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("eureka"), 8761);
-        int authPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("auth"), 3001);
-        int coursePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("course"), 3002);
-        int enrollmentPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("enrollment"), 3003);
-        int gradePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("grade"), 3004);
+        // Only update URLs for started containers
+        if (serviceContainers.get("eureka").isRunning()) {
+            int eurekaPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("eureka"), 8761);
+            EUREKA_URL = "http://localhost:" + eurekaPort;
+            System.out.println("  Eureka: " + eurekaPort + " -> " + EUREKA_URL);
+        }
         
-        // Update the base URLs with mapped ports
-        AUTH_BASE_URL = "http://localhost:" + authPort;
-        COURSE_BASE_URL = "http://localhost:" + coursePort;
-        ENROLLMENT_BASE_URL = "http://localhost:" + enrollmentPort;
-        GRADE_BASE_URL = "http://localhost:" + gradePort;
-        EUREKA_URL = "http://localhost:" + eurekaPort;
+        if (serviceContainers.get("auth") != null && serviceContainers.get("auth").isRunning()) {
+            int authPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("auth"), 3001);
+            AUTH_BASE_URL = "http://localhost:" + authPort;
+            System.out.println("  Auth: " + authPort + " -> " + AUTH_BASE_URL);
+        }
         
-        System.out.println("Service ports mapped:");
-        System.out.println("  Eureka: " + eurekaPort + " -> " + EUREKA_URL);
-        System.out.println("  Auth: " + authPort + " -> " + AUTH_BASE_URL);
-        System.out.println("  Course: " + coursePort + " -> " + COURSE_BASE_URL);
-        System.out.println("  Enrollment: " + enrollmentPort + " -> " + ENROLLMENT_BASE_URL);
-        System.out.println("  Grade: " + gradePort + " -> " + GRADE_BASE_URL);
+        if (serviceContainers.get("course") != null && serviceContainers.get("course").isRunning()) {
+            int coursePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("course"), 3002);
+            COURSE_BASE_URL = "http://localhost:" + coursePort;
+            System.out.println("  Course: " + coursePort + " -> " + COURSE_BASE_URL);
+        }
+        
+        if (serviceContainers.get("enrollment") != null && serviceContainers.get("enrollment").isRunning()) {
+            int enrollmentPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("enrollment"), 3003);
+            ENROLLMENT_BASE_URL = "http://localhost:" + enrollmentPort;
+            System.out.println("  Enrollment: " + enrollmentPort + " -> " + ENROLLMENT_BASE_URL);
+        }
+        
+        if (serviceContainers.get("grade") != null && serviceContainers.get("grade").isRunning()) {
+            int gradePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("grade"), 3004);
+            GRADE_BASE_URL = "http://localhost:" + gradePort;
+            System.out.println("  Grade: " + gradePort + " -> " + GRADE_BASE_URL);
+        }
+    }
+    
+    private void startServiceContainer(String name, GenericContainer<?> container, long waitTime) {
+        try {
+            System.out.println("Starting " + name + " container...");
+            container.start();
+            System.out.println(name + " container started successfully");
+            
+            // Get mapped port for debugging
+            Integer[] exposedPorts = container.getExposedPorts().toArray(new Integer[0]);
+            if (exposedPorts.length > 0) {
+                int mappedPort = container.getMappedPort(exposedPorts[0]);
+                System.out.println(name + " is accessible on port: " + mappedPort);
+            }
+            
+            Thread.sleep(waitTime);
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to start " + name + " container: " + e.getMessage());
+            e.printStackTrace();
+            throw new IllegalStateException("Cannot start " + name + " container", e);
+        }
+    }
+    
+    private void verifyServiceHealth(String healthUrl, String serviceName) {
+        int maxRetries = 10;
+        int retryCount = 0;
+        
+        while (retryCount < maxRetries) {
+            try {
+                given()
+                    .when()
+                    .get(healthUrl)
+                    .then()
+                    .statusCode(200);
+                System.out.println("✓ " + serviceName + " health check passed");
+                return;
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    System.out.println("Waiting for " + serviceName + " to be healthy... (attempt " + retryCount + "/" + maxRetries + ")");
+                    waitSeconds(2);
+                }
+            }
+        }
+        throw new IllegalStateException(serviceName + " health check failed after " + maxRetries + " attempts");
+    }
+    
+    private void verifyServicesRegistered() {
+        try {
+            System.out.println("Verifying services are registered with Eureka...");
+            
+            // Give services time to register
+            Thread.sleep(5000);
+            
+            // Check Eureka for registered services
+            String response = given()
+                .when()
+                .get(EUREKA_URL + "/eureka/apps")
+                .then()
+                .statusCode(200)
+                .extract()
+                .asString();
+                
+            System.out.println("Services registered with Eureka:");
+            if (response.contains("AUTH-SERVICE")) System.out.println("✓ AUTH-SERVICE");
+            if (response.contains("COURSE-SERVICE")) System.out.println("✓ COURSE-SERVICE");
+            if (response.contains("ENROLLMENT-SERVICE")) System.out.println("✓ ENROLLMENT-SERVICE");
+            if (response.contains("GRADE-SERVICE")) System.out.println("✓ GRADE-SERVICE");
+            
+        } catch (Exception e) {
+            System.err.println("WARNING: Could not verify service registration: " + e.getMessage());
+        }
     }
     
     @Test

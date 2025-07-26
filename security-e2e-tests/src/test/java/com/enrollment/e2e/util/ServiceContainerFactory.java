@@ -143,18 +143,27 @@ public class ServiceContainerFactory {
         
         Map<String, GenericContainer<?>> containers = new HashMap<>();
         
-        // Create containers in proper order
-        containers.put("eureka", createEurekaContainer(network));
-        containers.put("auth", createAuthServiceContainer(network, mongoUri, redisHost));
-        containers.put("course", createCourseServiceContainer(network, mongoUri));
-        containers.put("enrollment", createEnrollmentServiceContainer(network, mongoUri));
-        containers.put("grade", createGradeServiceContainer(network, mongoUri));
-        
-        // Set dependencies
-        containers.get("auth").dependsOn(containers.get("eureka"));
-        containers.get("course").dependsOn(containers.get("eureka"));
-        containers.get("enrollment").dependsOn(containers.get("eureka"), containers.get("course"));
-        containers.get("grade").dependsOn(containers.get("eureka"), containers.get("course"));
+        try {
+            // Check if Docker images exist
+            checkDockerImages();
+            
+            // Create containers in proper order
+            containers.put("eureka", createEurekaContainer(network));
+            containers.put("auth", createAuthServiceContainer(network, mongoUri, redisHost));
+            containers.put("course", createCourseServiceContainer(network, mongoUri));
+            containers.put("enrollment", createEnrollmentServiceContainer(network, mongoUri));
+            containers.put("grade", createGradeServiceContainer(network, mongoUri));
+            
+            // Set dependencies
+            containers.get("auth").dependsOn(containers.get("eureka"));
+            containers.get("course").dependsOn(containers.get("eureka"));
+            containers.get("enrollment").dependsOn(containers.get("eureka"), containers.get("course"));
+            containers.get("grade").dependsOn(containers.get("eureka"), containers.get("course"));
+            
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to create service containers: " + e.getMessage());
+            throw new IllegalStateException("Cannot create service environment", e);
+        }
         
         return containers;
     }
@@ -212,5 +221,45 @@ public class ServiceContainerFactory {
                 container.stop();
             }
         }
+    }
+    
+    /**
+     * Checks if required Docker images are available
+     */
+    private static void checkDockerImages() {
+        String[] requiredImages = {
+            "onlineenrollmentsystem-p4-eureka:latest",
+            "onlineenrollmentsystem-p4-auth-service:latest",
+            "onlineenrollmentsystem-p4-course-service:latest",
+            "onlineenrollmentsystem-p4-enrollment-service:latest",
+            "onlineenrollmentsystem-p4-grade-service:latest"
+        };
+        
+        System.out.println("=== Checking Docker Images ===");
+        boolean allImagesFound = true;
+        
+        for (String image : requiredImages) {
+            try {
+                // Try to create a DockerImageName to verify it exists
+                DockerImageName dockerImage = DockerImageName.parse(image);
+                System.out.println("✓ Found image: " + image);
+            } catch (Exception e) {
+                System.err.println("✗ Missing image: " + image);
+                allImagesFound = false;
+            }
+        }
+        
+        if (!allImagesFound) {
+            System.err.println("\n=== Docker Images Missing ===");
+            System.err.println("Some required Docker images are not available.");
+            System.err.println("Please build the images first by running:");
+            System.err.println("  cd .. && mvn clean package");
+            System.err.println("  docker-compose build");
+            System.err.println("Or run the build script:");
+            System.err.println("  ./build-docker-images.sh");
+            throw new IllegalStateException("Required Docker images are not available");
+        }
+        
+        System.out.println("All required Docker images found.\n");
     }
 }

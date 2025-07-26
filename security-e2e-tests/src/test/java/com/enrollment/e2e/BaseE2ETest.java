@@ -199,6 +199,7 @@ public abstract class BaseE2ETest {
      * Logs in a user and returns the JWT token.
      */
     protected String loginAndGetToken(String email, String password) {
+        System.out.println("Attempting login for: " + email);
         Map<String, Object> response = RestAssured
                 .given()
                     .spec(createRequestSpec())
@@ -210,9 +211,12 @@ public abstract class BaseE2ETest {
                     .extract()
                     .as(Map.class);
         
+        System.out.println("Login response for " + email + ": " + response);
         String token = (String) response.get("token");
         if (token == null) {
             System.err.println("ERROR: No token in login response for " + email + ": " + response);
+        } else {
+            System.out.println("Token extracted successfully for " + email);
         }
         return token;
     }
