@@ -3,11 +3,16 @@ package com.enrollment.e2e.util;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitStrategy;
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Factory for creating TestContainers for each microservice.
@@ -15,6 +20,7 @@ import java.util.Map;
  */
 public class ServiceContainerFactory {
     
+    private static final Logger log = LoggerFactory.getLogger(ServiceContainerFactory.class);
     private static final Duration STARTUP_TIMEOUT = Duration.ofMinutes(3);
     private static final String JWT_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
     
@@ -22,27 +28,42 @@ public class ServiceContainerFactory {
      * Creates a container for the Eureka Service Discovery
      */
     public static GenericContainer<?> createEurekaContainer(Network network) {
+        log.info("Creating Eureka container");
+        WaitStrategy waitStrategy = new HttpWaitStrategy()
+                .forPath("/actuator/health")
+                .forPort(8761)
+                .forStatusCode(200)
+                .withStartupTimeout(STARTUP_TIMEOUT);
+        
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-eureka:latest"))
                 .withNetwork(network)
                 .withNetworkAliases("eureka")
                 .withExposedPorts(8761)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
-                .waitingFor(Wait.forHttp("/actuator/health")
-                    .forPort(8761)
-                    .withStartupTimeout(STARTUP_TIMEOUT))
+                .withEnv("SERVER_PORT", "8761")
+                .waitingFor(waitStrategy)
                 .withLabel("service", "eureka")
-                .withLogConsumer(outputFrame -> System.out.print("[EUREKA] " + outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> log.debug("[EUREKA] {}", outputFrame.getUtf8String()));
     }
     
     /**
      * Creates a container for the Auth Service
      */
     public static GenericContainer<?> createAuthServiceContainer(Network network, String mongoUri, String redisHost) {
+        log.info("Creating Auth Service container");
         // Use JVM system properties to ensure Redis configuration is properly overridden
         String javaOpts = String.format(
-            "-Dspring.redis.host=%s -Dspring.redis.port=6379 -Dspring.data.redis.host=%s -Dspring.data.redis.port=6379",
+            "-Dspring.redis.host=%s -Dspring.redis.port=6379 -Dspring.data.redis.host=%s -Dspring.data.redis.port=6379 " +
+            "-Dspring.redis.connect-timeout=5000 -Dspring.redis.timeout=5000",
             redisHost, redisHost
         );
+        
+        // Use health endpoint wait strategy which is more reliable
+        WaitStrategy waitStrategy = new HttpWaitStrategy()
+                .forPath("/actuator/health")
+                .forPort(3001)
+                .forStatusCode(200)
+                .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-auth-service:latest"))
                 .withNetwork(network)
@@ -50,15 +71,17 @@ public class ServiceContainerFactory {
                 .withExposedPorts(3001)
                 .withEnv("SPRING_PROFILES_ACTIVE", "default")
                 .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/auth_service")
-                // Try both formats for Redis configuration
+                // Redis configuration with connection pooling
                 .withEnv("SPRING_REDIS_HOST", redisHost)
                 .withEnv("SPRING_DATA_REDIS_HOST", redisHost)
                 .withEnv("SPRING_REDIS_PORT", "6379")
                 .withEnv("SPRING_DATA_REDIS_PORT", "6379")
-                .withEnv("SPRING_REDIS_TIMEOUT", "2000ms")
+                .withEnv("SPRING_REDIS_TIMEOUT", "5000")
+                .withEnv("SPRING_REDIS_CONNECT_TIMEOUT", "5000")
                 .withEnv("SPRING_REDIS_LETTUCE_POOL_MAX-ACTIVE", "8")
                 .withEnv("SPRING_REDIS_LETTUCE_POOL_MAX-IDLE", "8")
                 .withEnv("SPRING_REDIS_LETTUCE_POOL_MIN-IDLE", "0")
+                .withEnv("SPRING_REDIS_LETTUCE_POOL_MAX-WAIT", "2000")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3001")
@@ -66,16 +89,22 @@ public class ServiceContainerFactory {
                 .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
                 // Add JVM options to override properties
                 .withEnv("JAVA_OPTS", javaOpts)
-                .waitingFor(Wait.forLogMessage(".*Started AuthServiceApplication.*", 1)
-                    .withStartupTimeout(STARTUP_TIMEOUT))
+                .waitingFor(waitStrategy)
                 .withLabel("service", "auth-service")
-                .withLogConsumer(outputFrame -> System.out.print("[AUTH] " + outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> log.debug("[AUTH] {}", outputFrame.getUtf8String()));
     }
     
     /**
      * Creates a container for the Course Service
      */
     public static GenericContainer<?> createCourseServiceContainer(Network network, String mongoUri) {
+        log.info("Creating Course Service container");
+        WaitStrategy waitStrategy = new HttpWaitStrategy()
+                .forPath("/actuator/health")
+                .forPort(3002)
+                .forStatusCode(200)
+                .withStartupTimeout(STARTUP_TIMEOUT);
+        
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-course-service:latest"))
                 .withNetwork(network)
                 .withNetworkAliases("course-service")
@@ -87,16 +116,22 @@ public class ServiceContainerFactory {
                 .withEnv("SERVER_PORT", "3002")
                 .withEnv("EUREKA_CLIENT_ENABLED", "true")
                 .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
-                .waitingFor(Wait.forLogMessage(".*Started CourseServiceApplication.*", 1)
-                    .withStartupTimeout(STARTUP_TIMEOUT))
+                .waitingFor(waitStrategy)
                 .withLabel("service", "course-service")
-                .withLogConsumer(outputFrame -> System.out.print("[COURSE] " + outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> log.debug("[COURSE] {}", outputFrame.getUtf8String()));
     }
     
     /**
      * Creates a container for the Enrollment Service
      */
     public static GenericContainer<?> createEnrollmentServiceContainer(Network network, String mongoUri) {
+        log.info("Creating Enrollment Service container");
+        WaitStrategy waitStrategy = new HttpWaitStrategy()
+                .forPath("/actuator/health")
+                .forPort(3003)
+                .forStatusCode(200)
+                .withStartupTimeout(STARTUP_TIMEOUT);
+        
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-enrollment-service:latest"))
                 .withNetwork(network)
                 .withNetworkAliases("enrollment-service")
@@ -108,16 +143,22 @@ public class ServiceContainerFactory {
                 .withEnv("SERVER_PORT", "3003")
                 .withEnv("EUREKA_CLIENT_ENABLED", "true")
                 .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
-                .waitingFor(Wait.forLogMessage(".*Started EnrollmentServiceApplication.*", 1)
-                    .withStartupTimeout(STARTUP_TIMEOUT))
+                .waitingFor(waitStrategy)
                 .withLabel("service", "enrollment-service")
-                .withLogConsumer(outputFrame -> System.out.print("[ENROLLMENT] " + outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> log.debug("[ENROLLMENT] {}", outputFrame.getUtf8String()));
     }
     
     /**
      * Creates a container for the Grade Service
      */
     public static GenericContainer<?> createGradeServiceContainer(Network network, String mongoUri) {
+        log.info("Creating Grade Service container");
+        WaitStrategy waitStrategy = new HttpWaitStrategy()
+                .forPath("/actuator/health")
+                .forPort(3004)
+                .forStatusCode(200)
+                .withStartupTimeout(STARTUP_TIMEOUT);
+        
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-grade-service:latest"))
                 .withNetwork(network)
                 .withNetworkAliases("grade-service")
@@ -129,10 +170,9 @@ public class ServiceContainerFactory {
                 .withEnv("SERVER_PORT", "3004")
                 .withEnv("EUREKA_CLIENT_ENABLED", "true")
                 .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
-                .waitingFor(Wait.forLogMessage(".*Started GradeServiceApplication.*", 1)
-                    .withStartupTimeout(STARTUP_TIMEOUT))
+                .waitingFor(waitStrategy)
                 .withLabel("service", "grade-service")
-                .withLogConsumer(outputFrame -> System.out.print("[GRADE] " + outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> log.debug("[GRADE] {}", outputFrame.getUtf8String()));
     }
     
     /**

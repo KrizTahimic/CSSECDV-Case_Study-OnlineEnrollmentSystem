@@ -2,6 +2,7 @@ package com.enrollment.e2e;
 
 import com.enrollment.e2e.config.E2ETestProfile;
 import com.enrollment.e2e.util.ServiceMockFactory;
+import com.enrollment.e2e.util.HealthCheckUtil;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
@@ -20,6 +21,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -30,6 +33,8 @@ import java.util.Map;
 @SpringBootTest(classes = TestApplication.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 public abstract class BaseE2ETest {
+    
+    private static final Logger log = LoggerFactory.getLogger(BaseE2ETest.class);
     
     // Test profile
     protected static final E2ETestProfile TEST_PROFILE = E2ETestProfile.getActiveProfile();
@@ -105,28 +110,28 @@ public abstract class BaseE2ETest {
     static void setup() {
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
         
-        System.out.println("=== E2E Test Configuration ===");
-        System.out.println("Active Profile: " + TEST_PROFILE.getProfileName());
-        System.out.println("Description: " + TEST_PROFILE.getDescription());
-        System.out.println();
+        log.info("=== E2E Test Configuration ===");
+        log.info("Active Profile: {}", TEST_PROFILE.getProfileName());
+        log.info("Description: {}", TEST_PROFILE.getDescription());
+        log.info("");
         
         // Setup mock servers if needed
         if (TEST_PROFILE.shouldUseMocks()) {
-            System.out.println("Starting mock services...");
+            log.info("Starting mock services...");
             mockServers = ServiceMockFactory.createFullMockEnvironment();
-            System.out.println("Mock services started successfully");
+            log.info("Mock services started successfully");
         }
         
         // For MANUAL mode, verify services are running
         if (TEST_PROFILE == E2ETestProfile.MANUAL) {
-            System.out.println("Manual mode - expecting services to be already running");
+            log.info("Manual mode - expecting services to be already running");
             verifyManualServices();
         }
         
         // For INTEGRATION mode, note that services need to be started
         if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
-            System.out.println("Integration mode - real services required");
-            System.out.println("Note: Tests will only work if services are running or FullServiceE2ETest is used");
+            log.info("Integration mode - real services required");
+            log.info("Note: Tests will only work if services are running or FullServiceE2ETest is used");
             // In integration mode, only FullServiceE2ETest should run
             // Other tests should use mock or hybrid profiles
         }
@@ -136,7 +141,7 @@ public abstract class BaseE2ETest {
     static void teardown() {
         // Cleanup mock servers if they were created
         if (mockServers != null) {
-            System.out.println("Shutting down mock services...");
+            log.info("Shutting down mock services...");
             ServiceMockFactory.shutdownMockServers(
                 mockServers.values().toArray(new WireMockServer[0])
             );
@@ -146,17 +151,22 @@ public abstract class BaseE2ETest {
     private static void verifyManualServices() {
         // In manual mode, check if services are accessible
         // This is just a warning, not a failure
-        try {
-            RestAssured.get(AUTH_BASE_URL + "/actuator/health");
-            System.out.println("✓ Auth service is accessible");
-        } catch (Exception e) {
-            System.err.println("⚠ Auth service not accessible at " + AUTH_BASE_URL);
+        boolean authAccessible = HealthCheckUtil.isServiceAccessible("Auth Service", AUTH_BASE_URL + "/actuator/health");
+        if (authAccessible) {
+            log.info("✓ Auth service is accessible");
+        } else {
+            log.warn("⚠ Auth service not accessible at {}", AUTH_BASE_URL);
         }
     }
     
     @BeforeEach
     void setupEach() {
         RestAssured.reset();
+        
+        // Verify connections before each test (except for FullServiceE2ETest which handles its own)
+        if (!this.getClass().equals(FullServiceE2ETest.class)) {
+            verifyServiceConnections();
+        }
     }
     
     /**
@@ -199,7 +209,7 @@ public abstract class BaseE2ETest {
      * Logs in a user and returns the JWT token.
      */
     protected String loginAndGetToken(String email, String password) {
-        System.out.println("Attempting login for: " + email);
+        log.debug("Attempting login for: {}", email);
         Map<String, Object> response = RestAssured
                 .given()
                     .spec(createRequestSpec())
@@ -211,12 +221,12 @@ public abstract class BaseE2ETest {
                     .extract()
                     .as(Map.class);
         
-        System.out.println("Login response for " + email + ": " + response);
+        log.debug("Login response for {}: {}", email, response);
         String token = (String) response.get("token");
         if (token == null) {
-            System.err.println("ERROR: No token in login response for " + email + ": " + response);
+            log.error("ERROR: No token in login response for {}: {}", email, response);
         } else {
-            System.out.println("Token extracted successfully for " + email);
+            log.debug("Token extracted successfully for {}", email);
         }
         return token;
     }
@@ -231,6 +241,60 @@ public abstract class BaseE2ETest {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Test interrupted", e);
+        }
+    }
+    
+    /**
+     * Verify that required services are accessible before running tests
+     */
+    private void verifyServiceConnections() {
+        if (TEST_PROFILE == E2ETestProfile.INTEGRATION || TEST_PROFILE == E2ETestProfile.MANUAL) {
+            // For integration/manual tests, verify each service is accessible
+            log.debug("Verifying service connections for {} profile", TEST_PROFILE);
+            
+            boolean allServicesAccessible = true;
+            
+            // Skip auth service check for non-auth tests if using mocks partially
+            if (!HealthCheckUtil.isServiceAccessible("Auth Service", AUTH_BASE_URL + "/actuator/health")) {
+                log.warn("Auth Service is not accessible at {}", AUTH_BASE_URL);
+                if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+                    allServicesAccessible = false;
+                }
+            }
+            
+            if (!HealthCheckUtil.isServiceAccessible("Course Service", COURSE_BASE_URL + "/actuator/health")) {
+                log.warn("Course Service is not accessible at {}", COURSE_BASE_URL);
+                if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+                    allServicesAccessible = false;
+                }
+            }
+            
+            if (!HealthCheckUtil.isServiceAccessible("Enrollment Service", ENROLLMENT_BASE_URL + "/actuator/health")) {
+                log.warn("Enrollment Service is not accessible at {}", ENROLLMENT_BASE_URL);
+                if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+                    allServicesAccessible = false;
+                }
+            }
+            
+            if (!HealthCheckUtil.isServiceAccessible("Grade Service", GRADE_BASE_URL + "/actuator/health")) {
+                log.warn("Grade Service is not accessible at {}", GRADE_BASE_URL);
+                if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+                    allServicesAccessible = false;
+                }
+            }
+            
+            if (!allServicesAccessible && TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+                throw new IllegalStateException("One or more required services are not accessible. " +
+                    "For integration tests, please ensure all services are running or use FullServiceE2ETest.");
+            }
+            
+            if (allServicesAccessible) {
+                log.debug("All required services are accessible");
+            }
+        } else if (TEST_PROFILE.shouldUseMocks()) {
+            // For mock tests, just verify WireMock is running
+            log.debug("Verifying mock services are accessible");
+            // Mock services should be available at this point from BeforeAll
         }
     }
 }

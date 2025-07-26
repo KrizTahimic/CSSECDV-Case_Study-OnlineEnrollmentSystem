@@ -3,13 +3,19 @@ package com.enrollment.e2e;
 import com.enrollment.e2e.config.E2ETestProfile;
 import com.enrollment.e2e.util.ServiceContainerFactory;
 import com.enrollment.e2e.util.TestDataFactory;
+import com.enrollment.e2e.util.HealthCheckUtil;
+import com.enrollment.e2e.util.DiagnosticUtil;
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.HashMap;
+import java.time.Duration;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -25,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Full Service E2E Tests with Real Containers")
 public class FullServiceE2ETest extends BaseE2ETest {
     
+    private static final Logger log = LoggerFactory.getLogger(FullServiceE2ETest.class);
     private static Map<String, GenericContainer<?>> serviceContainers;
     
     @BeforeAll
@@ -34,12 +41,19 @@ public class FullServiceE2ETest extends BaseE2ETest {
             "Full service tests only run in integration profile. Use --integration flag.");
         
         try {
-            System.out.println("=== Setting up Full Service Environment ===");
+            log.info("=== Setting up Full Service Environment ===");
             
             // Use the shared network from base class
-            // Wait for MongoDB to be ready
-            System.out.println("Waiting for MongoDB to be ready...");
-            Thread.sleep(5000);
+            // Verify MongoDB and Redis are ready first
+            log.info("Verifying MongoDB is ready...");
+            if (!verifyMongoDBReady()) {
+                throw new IllegalStateException("MongoDB is not ready");
+            }
+            
+            log.info("Verifying Redis is ready...");
+            if (!verifyRedisReady()) {
+                throw new IllegalStateException("Redis is not ready");
+            }
             
             // Get MongoDB and Redis connection info from base containers
             String mongoUri = "mongodb://mongodb:27017";
@@ -50,40 +64,102 @@ public class FullServiceE2ETest extends BaseE2ETest {
                 network, mongoUri, redisHost
             );
             
-            // Start containers in order with error handling
-            startServiceContainer("eureka", serviceContainers.get("eureka"), 10000);
+            // Start Eureka first and wait for it to be fully ready
+            log.info("Starting Eureka service...");
+            GenericContainer<?> eurekaContainer = serviceContainers.get("eureka");
+            eurekaContainer.start();
             
-            // Update service URLs first to get proper ports
-            updateServiceUrls();
+            // Get Eureka URL immediately after starting
+            String eurekaUrl = "http://localhost:" + eurekaContainer.getMappedPort(8761);
+            EUREKA_URL = eurekaUrl;
+            log.info("Eureka URL: {}", eurekaUrl);
             
-            // Now verify health with correct URL
-            verifyServiceHealth(EUREKA_URL + "/actuator/health", "Eureka");
+            // Wait for Eureka to be healthy
+            if (!HealthCheckUtil.waitForServiceHealth("Eureka", eurekaUrl + "/actuator/health")) {
+                throw new IllegalStateException("Eureka failed to become healthy");
+            }
             
-            startServiceContainer("auth", serviceContainers.get("auth"), 20000);
-            // Auth service needs extra time for Redis connection
-            System.out.println("Waiting for Auth Service Redis connection...");
-            Thread.sleep(10000);
+            // Start Auth service and wait for it to be ready
+            log.info("Starting Auth service...");
+            GenericContainer<?> authContainer = serviceContainers.get("auth");
+            authContainer.start();
             
-            startServiceContainer("course", serviceContainers.get("course"), 10000);
-            startServiceContainer("enrollment", serviceContainers.get("enrollment"), 10000);
-            startServiceContainer("grade", serviceContainers.get("grade"), 10000);
+            String authUrl = "http://localhost:" + authContainer.getMappedPort(3001);
+            AUTH_BASE_URL = authUrl;
+            log.info("Auth URL: {}", authUrl);
             
-            System.out.println("All services started. Waiting for complete initialization...");
-            Thread.sleep(5000); // Additional wait for all services to stabilize
+            // Wait for Auth to be healthy (includes Redis connection)
+            if (!HealthCheckUtil.waitForServiceHealth("Auth", authUrl + "/actuator/health")) {
+                throw new IllegalStateException("Auth service failed to become healthy");
+            }
             
-            // Update all service URLs now that all containers are started
-            System.out.println("Service ports mapped:");
-            updateServiceUrls();
+            // Start remaining services in parallel since they don't depend on each other
+            log.info("Starting Course, Enrollment, and Grade services...");
+            GenericContainer<?> courseContainer = serviceContainers.get("course");
+            GenericContainer<?> enrollmentContainer = serviceContainers.get("enrollment");
+            GenericContainer<?> gradeContainer = serviceContainers.get("grade");
             
-            // Verify all services are registered with Eureka
-            verifyServicesRegistered();
+            courseContainer.start();
+            enrollmentContainer.start();
+            gradeContainer.start();
             
-            System.out.println("=== Full Service Environment Ready ===");
+            // Update URLs for all services
+            COURSE_BASE_URL = "http://localhost:" + courseContainer.getMappedPort(3002);
+            ENROLLMENT_BASE_URL = "http://localhost:" + enrollmentContainer.getMappedPort(3003);
+            GRADE_BASE_URL = "http://localhost:" + gradeContainer.getMappedPort(3004);
+            
+            log.info("Service URLs:");
+            log.info("  Eureka: {}", EUREKA_URL);
+            log.info("  Auth: {}", AUTH_BASE_URL);
+            log.info("  Course: {}", COURSE_BASE_URL);
+            log.info("  Enrollment: {}", ENROLLMENT_BASE_URL);
+            log.info("  Grade: {}", GRADE_BASE_URL);
+            
+            // Wait for all services to be healthy
+            boolean allHealthy = 
+                HealthCheckUtil.waitForServiceHealth("Course", COURSE_BASE_URL + "/actuator/health") &&
+                HealthCheckUtil.waitForServiceHealth("Enrollment", ENROLLMENT_BASE_URL + "/actuator/health") &&
+                HealthCheckUtil.waitForServiceHealth("Grade", GRADE_BASE_URL + "/actuator/health");
+            
+            if (!allHealthy) {
+                throw new IllegalStateException("Some services failed to become healthy");
+            }
+            
+            // Wait for all services to register with Eureka
+            log.info("Waiting for all services to register with Eureka...");
+            if (!HealthCheckUtil.waitForEurekaRegistrations(EUREKA_URL, 4, Duration.ofMinutes(2))) {
+                log.warn("Not all services registered with Eureka, but continuing...");
+            }
+            
+            log.info("=== Full Service Environment Ready ===");
             
         } catch (Exception e) {
-            System.err.println("Failed to start service containers. Make sure Docker images are built:");
-            System.err.println("Run: mvn clean package && docker-compose build");
-            throw new IllegalStateException("Cannot start service containers", e);
+            log.error("Failed to start service containers", e);
+            
+            // Perform comprehensive diagnostics
+            DiagnosticUtil.logTestEnvironment();
+            DiagnosticUtil.checkMongoDBConnection(mongoDBContainer);
+            DiagnosticUtil.checkRedisConnection(redisContainer);
+            
+            if (serviceContainers != null) {
+                // Diagnose each container
+                serviceContainers.forEach((name, container) -> {
+                    if (container != null) {
+                        DiagnosticUtil.diagnoseContainer(name, container);
+                    }
+                });
+                
+                // Check all endpoints
+                Map<String, String> serviceUrls = new HashMap<>();
+                serviceUrls.put("Eureka", EUREKA_URL);
+                serviceUrls.put("Auth", AUTH_BASE_URL);
+                serviceUrls.put("Course", COURSE_BASE_URL);
+                serviceUrls.put("Enrollment", ENROLLMENT_BASE_URL);
+                serviceUrls.put("Grade", GRADE_BASE_URL);
+                DiagnosticUtil.checkAllEndpoints(serviceUrls);
+            }
+            
+            throw new IllegalStateException("Cannot start service containers. Check diagnostics above.", e);
         }
     }
     
@@ -94,56 +170,77 @@ public class FullServiceE2ETest extends BaseE2ETest {
         }
     }
     
+    private boolean verifyMongoDBReady() {
+        try {
+            // MongoDB container from base class should already be running
+            // Just verify it's accessible
+            return mongoDBContainer != null && mongoDBContainer.isRunning();
+        } catch (Exception e) {
+            log.error("MongoDB verification failed", e);
+            return false;
+        }
+    }
+    
+    private boolean verifyRedisReady() {
+        try {
+            // Redis container from base class should already be running
+            // Just verify it's accessible
+            return redisContainer != null && redisContainer.isRunning();
+        } catch (Exception e) {
+            log.error("Redis verification failed", e);
+            return false;
+        }
+    }
+    
     private void updateServiceUrls() {
         // Only update URLs for started containers
         if (serviceContainers.get("eureka").isRunning()) {
             int eurekaPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("eureka"), 8761);
             EUREKA_URL = "http://localhost:" + eurekaPort;
-            System.out.println("  Eureka: " + eurekaPort + " -> " + EUREKA_URL);
+            log.info("  Eureka: {} -> {}", eurekaPort, EUREKA_URL);
         }
         
         if (serviceContainers.get("auth") != null && serviceContainers.get("auth").isRunning()) {
             int authPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("auth"), 3001);
             AUTH_BASE_URL = "http://localhost:" + authPort;
-            System.out.println("  Auth: " + authPort + " -> " + AUTH_BASE_URL);
+            log.info("  Auth: {} -> {}", authPort, AUTH_BASE_URL);
         }
         
         if (serviceContainers.get("course") != null && serviceContainers.get("course").isRunning()) {
             int coursePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("course"), 3002);
             COURSE_BASE_URL = "http://localhost:" + coursePort;
-            System.out.println("  Course: " + coursePort + " -> " + COURSE_BASE_URL);
+            log.info("  Course: {} -> {}", coursePort, COURSE_BASE_URL);
         }
         
         if (serviceContainers.get("enrollment") != null && serviceContainers.get("enrollment").isRunning()) {
             int enrollmentPort = ServiceContainerFactory.getMappedPort(serviceContainers.get("enrollment"), 3003);
             ENROLLMENT_BASE_URL = "http://localhost:" + enrollmentPort;
-            System.out.println("  Enrollment: " + enrollmentPort + " -> " + ENROLLMENT_BASE_URL);
+            log.info("  Enrollment: {} -> {}", enrollmentPort, ENROLLMENT_BASE_URL);
         }
         
         if (serviceContainers.get("grade") != null && serviceContainers.get("grade").isRunning()) {
             int gradePort = ServiceContainerFactory.getMappedPort(serviceContainers.get("grade"), 3004);
             GRADE_BASE_URL = "http://localhost:" + gradePort;
-            System.out.println("  Grade: " + gradePort + " -> " + GRADE_BASE_URL);
+            log.info("  Grade: {} -> {}", gradePort, GRADE_BASE_URL);
         }
     }
     
     private void startServiceContainer(String name, GenericContainer<?> container, long waitTime) {
         try {
-            System.out.println("Starting " + name + " container...");
+            log.info("Starting {} container...", name);
             container.start();
-            System.out.println(name + " container started successfully");
+            log.info("{} container started successfully", name);
             
             // Get mapped port for debugging
             Integer[] exposedPorts = container.getExposedPorts().toArray(new Integer[0]);
             if (exposedPorts.length > 0) {
                 int mappedPort = container.getMappedPort(exposedPorts[0]);
-                System.out.println(name + " is accessible on port: " + mappedPort);
+                log.info("{} is accessible on port: {}", name, mappedPort);
             }
             
             Thread.sleep(waitTime);
         } catch (Exception e) {
-            System.err.println("ERROR: Failed to start " + name + " container: " + e.getMessage());
-            e.printStackTrace();
+            log.error("ERROR: Failed to start {} container", name, e);
             throw new IllegalStateException("Cannot start " + name + " container", e);
         }
     }
@@ -159,12 +256,12 @@ public class FullServiceE2ETest extends BaseE2ETest {
                     .get(healthUrl)
                     .then()
                     .statusCode(200);
-                System.out.println("✓ " + serviceName + " health check passed");
+                log.info("✓ {} health check passed", serviceName);
                 return;
             } catch (Exception e) {
                 retryCount++;
                 if (retryCount < maxRetries) {
-                    System.out.println("Waiting for " + serviceName + " to be healthy... (attempt " + retryCount + "/" + maxRetries + ")");
+                    log.info("Waiting for {} to be healthy... (attempt {}/{})", serviceName, retryCount, maxRetries);
                     waitSeconds(2);
                 }
             }
@@ -174,7 +271,7 @@ public class FullServiceE2ETest extends BaseE2ETest {
     
     private void verifyServicesRegistered() {
         try {
-            System.out.println("Verifying services are registered with Eureka...");
+            log.info("Verifying services are registered with Eureka...");
             
             // Give services time to register
             Thread.sleep(5000);
@@ -188,14 +285,14 @@ public class FullServiceE2ETest extends BaseE2ETest {
                 .extract()
                 .asString();
                 
-            System.out.println("Services registered with Eureka:");
-            if (response.contains("AUTH-SERVICE")) System.out.println("✓ AUTH-SERVICE");
-            if (response.contains("COURSE-SERVICE")) System.out.println("✓ COURSE-SERVICE");
-            if (response.contains("ENROLLMENT-SERVICE")) System.out.println("✓ ENROLLMENT-SERVICE");
-            if (response.contains("GRADE-SERVICE")) System.out.println("✓ GRADE-SERVICE");
+            log.info("Services registered with Eureka:");
+            if (response.contains("AUTH-SERVICE")) log.info("✓ AUTH-SERVICE");
+            if (response.contains("COURSE-SERVICE")) log.info("✓ COURSE-SERVICE");
+            if (response.contains("ENROLLMENT-SERVICE")) log.info("✓ ENROLLMENT-SERVICE");
+            if (response.contains("GRADE-SERVICE")) log.info("✓ GRADE-SERVICE");
             
         } catch (Exception e) {
-            System.err.println("WARNING: Could not verify service registration: " + e.getMessage());
+            log.warn("WARNING: Could not verify service registration: {}", e.getMessage());
         }
     }
     
