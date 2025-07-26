@@ -70,7 +70,7 @@ public class AuthorizationE2ETest extends BaseE2ETest {
                     .post(COURSE_BASE_URL + "/api/courses")
                 .then()
                     .statusCode(201)
-                    .body("courseCode", notNullValue())
+                    .body("code", notNullValue())
                     .extract()
                     .as(Map.class);
         
@@ -199,7 +199,7 @@ public class AuthorizationE2ETest extends BaseE2ETest {
                 .when()
                     .post(GRADE_BASE_URL + "/api/grades")
                 .then()
-                    .statusCode(200)
+                    .statusCode(201)
                     .body("studentEmail", equalTo(studentEmail))
                     .body("score", equalTo(85.0F))
                     .body("letterGrade", equalTo("B"));
@@ -407,7 +407,7 @@ public class AuthorizationE2ETest extends BaseE2ETest {
                 .when()
                     .post(GRADE_BASE_URL + "/api/grades")
                 .then()
-                    .statusCode(200);
+                    .statusCode(201);
         
         // Verify authorization is maintained when accessing across services:
         

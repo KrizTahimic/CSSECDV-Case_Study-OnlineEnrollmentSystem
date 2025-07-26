@@ -108,6 +108,6 @@ public class EnrollmentRoleChecker extends ResponseDefinitionTransformer {
     
     @Override
     public boolean applyGlobally() {
-        return true;
+        return false;
     }
 }

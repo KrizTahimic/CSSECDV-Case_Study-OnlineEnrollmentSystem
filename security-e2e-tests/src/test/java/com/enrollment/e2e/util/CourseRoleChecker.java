@@ -75,8 +75,8 @@ public class CourseRoleChecker extends ResponseDefinitionTransformer {
             // Faculty and admin can create courses
             try {
                 JsonNode requestBody = objectMapper.readTree(request.getBodyAsString());
-                String courseCode = requestBody.has("courseCode") ? requestBody.get("courseCode").asText() : "CS301";
-                String courseName = requestBody.has("courseName") ? requestBody.get("courseName").asText() : "Advanced Algorithms";
+                String courseCode = requestBody.has("code") ? requestBody.get("code").asText() : "CS301";
+                String courseName = requestBody.has("name") ? requestBody.get("name").asText() : "Advanced Algorithms";
                 int capacity = requestBody.has("capacity") ? requestBody.get("capacity").asInt() : 30;
                 
                 return new ResponseDefinitionBuilder()
@@ -84,8 +84,8 @@ public class CourseRoleChecker extends ResponseDefinitionTransformer {
                     .withHeader("Content-Type", "application/json")
                     .withBody("{" +
                         "\"id\":\"" + UUID.randomUUID().toString() + "\"," +
-                        "\"courseCode\":\"" + courseCode + "\"," +
-                        "\"courseName\":\"" + courseName + "\"," +
+                        "\"code\":\"" + courseCode + "\"," +
+                        "\"name\":\"" + courseName + "\"," +
                         "\"capacity\":" + capacity + "," +
                         "\"enrolled\":0" +
                         "}")

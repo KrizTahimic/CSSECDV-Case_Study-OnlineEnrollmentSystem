@@ -19,6 +19,7 @@ public class LoginTokenGenerator extends ResponseDefinitionTransformer {
     
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final Map<String, String> userRoles = new ConcurrentHashMap<>();
+    private static final Map<String, String> lastLoginTimes = new ConcurrentHashMap<>();
     
     static {
         System.out.println("LoginTokenGenerator class loaded");
@@ -63,6 +64,13 @@ public class LoginTokenGenerator extends ResponseDefinitionTransformer {
             // Generate token with correct role
             String token = JwtTestUtil.generateToken(email, role);
             
+            // Get last login time (null for first login)
+            String lastLogin = lastLoginTimes.get(email);
+            String currentTime = new java.util.Date().toInstant().toString();
+            
+            // Update last login time for next login
+            lastLoginTimes.put(email, currentTime);
+            
             return new ResponseDefinitionBuilder()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
@@ -70,8 +78,8 @@ public class LoginTokenGenerator extends ResponseDefinitionTransformer {
                     "\"token\":\"" + token + "\"," +
                     "\"email\":\"" + email + "\"," +
                     "\"role\":\"" + role + "\"," +
-                    "\"lastLoginTime\":null," +
-                    "\"lastLoginIP\":null" +
+                    "\"lastLoginTime\":" + (lastLogin == null ? "null" : "\"" + lastLogin + "\"") + "," +
+                    "\"lastLoginIP\":" + (lastLogin == null ? "null" : "\"127.0.0.1\"") +
                     "}")
                 .build();
                 

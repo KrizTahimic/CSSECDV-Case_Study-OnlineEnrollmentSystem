@@ -145,13 +145,13 @@ public class ServiceMockFactory {
                     "\"lastName\":\"{{jsonPath request.body '$.lastName'}}\"" +
                     "}")));
         
-        // Login endpoint - let's use a simpler approach with the transformer
+        // Login endpoint - apply transformers to check credentials and track attempts
         stubFor(post(urlEqualTo("/api/auth/login"))
             .atPriority(1)
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("login-token-generator")
+                .withTransformers("login-attempt-tracker", "login-token-generator")
                 .withBody("{\"placeholder\":\"will be replaced by transformer\"}")));
         
         // Login endpoint - failure will be handled by LoginTokenGenerator for invalid credentials
@@ -163,7 +163,6 @@ public class ServiceMockFactory {
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("reauth-tracker")
                 .withBody("{\"message\":\"Re-authentication successful\"}")));
         
         // Disable password age restriction for testing
@@ -176,7 +175,6 @@ public class ServiceMockFactory {
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withTransformers("password-change-transformer")
                 .withBody("{\"message\":\"Password changed successfully\"}")));
         
         // Default 401 for protected endpoints without auth
@@ -351,10 +349,7 @@ public class ServiceMockFactory {
             .withHeader("Authorization", matching("Bearer .*"))
             .atPriority(1)
             .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withTransformers("enrollment-admin-checker")
-                .withBody("[]")));
+                .withTransformers("enrollment-admin-checker")));
         
         // Get student enrollments - requires auth and role check
         stubFor(get(urlPathMatching("/api/enrollments/student/[a-zA-Z0-9@.%-]+"))

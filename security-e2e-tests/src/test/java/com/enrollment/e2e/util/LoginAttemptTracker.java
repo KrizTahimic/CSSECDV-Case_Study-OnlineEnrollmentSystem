@@ -20,6 +20,11 @@ public class LoginAttemptTracker extends ResponseDefinitionTransformer {
     private static final int MAX_ATTEMPTS = 5;
     private static final Map<String, AtomicInteger> failedAttempts = new ConcurrentHashMap<>();
     
+    static {
+        // Pre-populate locked account for testing
+        failedAttempts.put("locked@test.com", new AtomicInteger(MAX_ATTEMPTS));
+    }
+    
     @Override
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
@@ -33,7 +38,7 @@ public class LoginAttemptTracker extends ResponseDefinitionTransformer {
             String email = JsonPath.read(requestBody, "$.email");
             String password = JsonPath.read(requestBody, "$.password");
             
-            // Check if account is locked
+            // Check if account is locked FIRST
             AtomicInteger attempts = failedAttempts.get(email);
             if (attempts != null && attempts.get() >= MAX_ATTEMPTS) {
                 return new ResponseDefinitionBuilder()
@@ -43,14 +48,24 @@ public class LoginAttemptTracker extends ResponseDefinitionTransformer {
                     .build();
             }
             
-            // If this is a failed login (status 401), increment counter
-            if (responseDefinition.getStatus() == 401) {
+            // Check if password is wrong (not the expected password)
+            if (!"SecurePass123!".equals(password)) {
+                // This is a failed attempt, increment counter
                 failedAttempts.computeIfAbsent(email, k -> new AtomicInteger(0)).incrementAndGet();
-            } else if (responseDefinition.getStatus() == 200) {
-                // Successful login, reset counter
-                failedAttempts.remove(email);
+                
+                // Always return invalid password error for failed attempts
+                // The lock will be checked on the NEXT attempt
+                return new ResponseDefinitionBuilder()
+                    .withStatus(401)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"error\":\"Invalid username and/or password\"}")
+                    .build();
             }
             
+            // Successful login, reset counter
+            failedAttempts.remove(email);
+            
+            // Let other transformers handle the successful login
             return responseDefinition;
             
         } catch (Exception e) {

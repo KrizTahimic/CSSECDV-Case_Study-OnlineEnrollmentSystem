@@ -28,6 +28,8 @@ public class InvalidTokenChecker extends ResponseDefinitionTransformer {
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
         
+        System.out.println("InvalidTokenChecker: Processing request to " + request.getUrl() + " method=" + request.getMethod());
+        
         // Only apply to GET /api/courses for invalid token testing
         if (!request.getUrl().equals("/api/courses") || 
             !request.getMethod().toString().equals("GET")) {
@@ -35,11 +37,22 @@ public class InvalidTokenChecker extends ResponseDefinitionTransformer {
         }
         
         String authHeader = request.getHeader("Authorization");
+        System.out.println("InvalidTokenChecker: Auth header = " + authHeader);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return responseDefinition;
         }
         
         String token = authHeader.substring(7);
+        System.out.println("InvalidTokenChecker: Token = " + token);
+        
+        // Check for special test tokens
+        if ("expired-token".equals(token)) {
+            return new ResponseDefinitionBuilder()
+                .withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"error\":\"Token has expired\"}")
+                .build();
+        }
         
         // Validate JWT signature
         try {
@@ -53,6 +66,7 @@ public class InvalidTokenChecker extends ResponseDefinitionTransformer {
             
         } catch (Exception e) {
             // Invalid token signature or format
+            System.out.println("InvalidTokenChecker: Token validation failed - " + e.getMessage());
             return new ResponseDefinitionBuilder()
                 .withStatus(403)
                 .withHeader("Content-Type", "application/json")
@@ -68,6 +82,6 @@ public class InvalidTokenChecker extends ResponseDefinitionTransformer {
     
     @Override
     public boolean applyGlobally() {
-        return false;
+        return true;
     }
 }

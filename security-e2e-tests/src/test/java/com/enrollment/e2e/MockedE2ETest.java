@@ -175,7 +175,7 @@ public class MockedE2ETest extends BaseE2ETest {
             .body(Map.of(
                 "studentId", "student123",
                 "courseId", "course123",
-                "grade", "A"
+                "score", 95.0  // Score that results in "A" grade
             ))
         .when()
             .post(GRADE_BASE_URL + "/api/grades")
@@ -304,18 +304,16 @@ public class MockedE2ETest extends BaseE2ETest {
         // Student token
         String studentToken = JwtTestUtil.generateToken("student@test.com", "student");
         
-        // Student tries to create a course (mock allows it as it doesn't check roles)
-        // In a real system, this would return 403 Forbidden
+        // Student tries to create a course (mock now enforces roles)
         given()
             .spec(createAuthenticatedRequestSpec(studentToken))
             .body(TestDataFactory.createCourseData())
         .when()
             .post(COURSE_BASE_URL + "/api/courses")
         .then()
-            .statusCode(201); // Mock doesn't enforce roles
+            .statusCode(403); // Mock now properly enforces roles
         
-        // Student tries to submit grades (mock allows it as it doesn't check roles)
-        // In a real system, this would return 403 Forbidden
+        // Student tries to submit grades (mock now enforces roles)
         given()
             .spec(createAuthenticatedRequestSpec(studentToken))
             .body(Map.of(
@@ -326,7 +324,7 @@ public class MockedE2ETest extends BaseE2ETest {
         .when()
             .post(GRADE_BASE_URL + "/api/grades")
         .then()
-            .statusCode(201); // Mock doesn't enforce roles
+            .statusCode(403); // Mock now properly enforces roles
     }
     
     @Test

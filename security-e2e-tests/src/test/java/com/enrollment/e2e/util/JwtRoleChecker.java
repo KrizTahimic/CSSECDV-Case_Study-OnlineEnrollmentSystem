@@ -82,26 +82,28 @@ public class JwtRoleChecker extends ResponseDefinitionTransformer {
                 else letterGrade = "F";
                 
                 return new ResponseDefinitionBuilder()
-                    .withStatus(200)
+                    .withStatus(201)
                     .withHeader("Content-Type", "application/json")
                     .withBody("{" +
                         "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
                         "\"studentEmail\":\"" + studentEmail + "\"," +
                         "\"courseId\":\"" + courseId + "\"," +
                         "\"score\":" + score + "," +
-                        "\"letterGrade\":\"" + letterGrade + "\"" +
+                        "\"letterGrade\":\"" + letterGrade + "\"," +
+                        "\"grade\":\"" + letterGrade + "\"" +
                         "}")
                     .build();
             } catch (Exception e) {
                 return new ResponseDefinitionBuilder()
-                    .withStatus(200)
+                    .withStatus(201)
                     .withHeader("Content-Type", "application/json")
                     .withBody("{" +
                         "\"id\":\"" + java.util.UUID.randomUUID().toString() + "\"," +
                         "\"studentEmail\":\"student@test.com\"," +
                         "\"courseId\":\"course123\"," +
                         "\"score\":85.0," +
-                        "\"letterGrade\":\"B\"" +
+                        "\"letterGrade\":\"B\"," +
+                        "\"grade\":\"B\"" +
                         "}")
                     .build();
             }

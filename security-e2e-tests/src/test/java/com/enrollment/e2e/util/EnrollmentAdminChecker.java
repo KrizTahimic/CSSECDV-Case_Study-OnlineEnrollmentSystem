@@ -29,6 +29,8 @@ public class EnrollmentAdminChecker extends ResponseDefinitionTransformer {
     public ResponseDefinition transform(Request request, ResponseDefinition responseDefinition, 
                                        FileSource files, Parameters parameters) {
         
+        System.out.println("EnrollmentAdminChecker: Processing request to " + request.getUrl() + " method=" + request.getMethod());
+        
         // Apply to all enrollments endpoint
         if (!request.getUrl().equals("/api/enrollments") || 
             !request.getMethod().toString().equals("GET")) {
@@ -54,9 +56,11 @@ public class EnrollmentAdminChecker extends ResponseDefinitionTransformer {
                 .getBody();
             
             String role = claims.get("role", String.class);
+            System.out.println("EnrollmentAdminChecker: Token email=" + claims.getSubject() + ", role=" + role);
             
             // Only faculty and admin can view all enrollments
             if ("student".equals(role)) {
+                System.out.println("EnrollmentAdminChecker: Denying access to student");
                 return new ResponseDefinitionBuilder()
                     .withStatus(403)
                     .withHeader("Content-Type", "application/json")
@@ -88,6 +92,6 @@ public class EnrollmentAdminChecker extends ResponseDefinitionTransformer {
     
     @Override
     public boolean applyGlobally() {
-        return false;
+        return true;
     }
 }

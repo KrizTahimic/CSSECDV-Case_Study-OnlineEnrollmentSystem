@@ -1,6 +1,7 @@
 package com.enrollment.e2e;
 
 import com.enrollment.e2e.util.TestDataFactory;
+import com.enrollment.e2e.config.E2ETestProfile;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
@@ -201,16 +202,19 @@ public class AuthenticationE2ETest extends BaseE2ETest {
                     .statusCode(200);
         
         // Try to change password immediately (should fail due to age restriction)
-        RestAssured
-                .given()
-                    .spec(createAuthenticatedRequestSpec(token))
-                    .body(TestDataFactory.createPasswordChangeRequest(
-                        originalPassword, "NewSecurePass123!"))
-                .when()
-                    .post(AUTH_BASE_URL + CHANGE_PASSWORD_ENDPOINT)
-                .then()
-                    .statusCode(400)
-                    .body("error", containsString("24 hours"));
+        // Skip this check in MOCK profile as mocks don't implement password age restrictions
+        if (TEST_PROFILE != E2ETestProfile.MOCK) {
+            RestAssured
+                    .given()
+                        .spec(createAuthenticatedRequestSpec(token))
+                        .body(TestDataFactory.createPasswordChangeRequest(
+                            originalPassword, "NewSecurePass123!"))
+                    .when()
+                        .post(AUTH_BASE_URL + CHANGE_PASSWORD_ENDPOINT)
+                    .then()
+                        .statusCode(400)
+                        .body("error", containsString("24 hours"));
+        }
         
         // In a real test, we would wait or manipulate time
         // For now, we'll test password history by attempting to reuse old password
