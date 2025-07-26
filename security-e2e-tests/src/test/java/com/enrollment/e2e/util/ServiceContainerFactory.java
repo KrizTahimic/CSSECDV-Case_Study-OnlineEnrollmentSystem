@@ -30,27 +30,46 @@ public class ServiceContainerFactory {
                 .waitingFor(Wait.forHttp("/actuator/health")
                     .forPort(8761)
                     .withStartupTimeout(STARTUP_TIMEOUT))
-                .withLabel("service", "eureka");
+                .withLabel("service", "eureka")
+                .withLogConsumer(outputFrame -> System.out.print("[EUREKA] " + outputFrame.getUtf8String()));
     }
     
     /**
      * Creates a container for the Auth Service
      */
     public static GenericContainer<?> createAuthServiceContainer(Network network, String mongoUri, String redisHost) {
+        // Use JVM system properties to ensure Redis configuration is properly overridden
+        String javaOpts = String.format(
+            "-Dspring.redis.host=%s -Dspring.redis.port=6379 -Dspring.data.redis.host=%s -Dspring.data.redis.port=6379",
+            redisHost, redisHost
+        );
+        
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-auth-service:latest"))
                 .withNetwork(network)
                 .withNetworkAliases("auth-service")
                 .withExposedPorts(3001)
-                .withEnv("SPRING_PROFILES_ACTIVE", "docker")
-                .withEnv("SPRING_DATA_MONGODB_URI", mongoUri)
+                .withEnv("SPRING_PROFILES_ACTIVE", "default")
+                .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/auth_service")
+                // Try both formats for Redis configuration
                 .withEnv("SPRING_REDIS_HOST", redisHost)
+                .withEnv("SPRING_DATA_REDIS_HOST", redisHost)
+                .withEnv("SPRING_REDIS_PORT", "6379")
+                .withEnv("SPRING_DATA_REDIS_PORT", "6379")
+                .withEnv("SPRING_REDIS_TIMEOUT", "2000ms")
+                .withEnv("SPRING_REDIS_LETTUCE_POOL_MAX-ACTIVE", "8")
+                .withEnv("SPRING_REDIS_LETTUCE_POOL_MAX-IDLE", "8")
+                .withEnv("SPRING_REDIS_LETTUCE_POOL_MIN-IDLE", "0")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3001")
-                .waitingFor(Wait.forHttp("/actuator/health")
-                    .forPort(3001)
+                .withEnv("EUREKA_CLIENT_ENABLED", "true")
+                .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
+                // Add JVM options to override properties
+                .withEnv("JAVA_OPTS", javaOpts)
+                .waitingFor(Wait.forLogMessage(".*Started AuthServiceApplication.*", 1)
                     .withStartupTimeout(STARTUP_TIMEOUT))
-                .withLabel("service", "auth-service");
+                .withLabel("service", "auth-service")
+                .withLogConsumer(outputFrame -> System.out.print("[AUTH] " + outputFrame.getUtf8String()));
     }
     
     /**
@@ -62,14 +81,16 @@ public class ServiceContainerFactory {
                 .withNetworkAliases("course-service")
                 .withExposedPorts(3002)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
-                .withEnv("SPRING_DATA_MONGODB_URI", mongoUri)
+                .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/course_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3002")
-                .waitingFor(Wait.forHttp("/actuator/health")
-                    .forPort(3002)
+                .withEnv("EUREKA_CLIENT_ENABLED", "true")
+                .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
+                .waitingFor(Wait.forLogMessage(".*Started CourseServiceApplication.*", 1)
                     .withStartupTimeout(STARTUP_TIMEOUT))
-                .withLabel("service", "course-service");
+                .withLabel("service", "course-service")
+                .withLogConsumer(outputFrame -> System.out.print("[COURSE] " + outputFrame.getUtf8String()));
     }
     
     /**
@@ -81,14 +102,16 @@ public class ServiceContainerFactory {
                 .withNetworkAliases("enrollment-service")
                 .withExposedPorts(3003)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
-                .withEnv("SPRING_DATA_MONGODB_URI", mongoUri)
+                .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/enrollment_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3003")
-                .waitingFor(Wait.forHttp("/actuator/health")
-                    .forPort(3003)
+                .withEnv("EUREKA_CLIENT_ENABLED", "true")
+                .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
+                .waitingFor(Wait.forLogMessage(".*Started EnrollmentServiceApplication.*", 1)
                     .withStartupTimeout(STARTUP_TIMEOUT))
-                .withLabel("service", "enrollment-service");
+                .withLabel("service", "enrollment-service")
+                .withLogConsumer(outputFrame -> System.out.print("[ENROLLMENT] " + outputFrame.getUtf8String()));
     }
     
     /**
@@ -100,14 +123,16 @@ public class ServiceContainerFactory {
                 .withNetworkAliases("grade-service")
                 .withExposedPorts(3004)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
-                .withEnv("SPRING_DATA_MONGODB_URI", mongoUri)
+                .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/grade_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3004")
-                .waitingFor(Wait.forHttp("/actuator/health")
-                    .forPort(3004)
+                .withEnv("EUREKA_CLIENT_ENABLED", "true")
+                .withEnv("SPRING_CLOUD_DISCOVERY_ENABLED", "true")
+                .waitingFor(Wait.forLogMessage(".*Started GradeServiceApplication.*", 1)
                     .withStartupTimeout(STARTUP_TIMEOUT))
-                .withLabel("service", "grade-service");
+                .withLabel("service", "grade-service")
+                .withLogConsumer(outputFrame -> System.out.print("[GRADE] " + outputFrame.getUtf8String()));
     }
     
     /**

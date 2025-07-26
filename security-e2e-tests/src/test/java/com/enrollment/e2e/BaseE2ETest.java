@@ -16,6 +16,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -37,21 +38,24 @@ public abstract class BaseE2ETest {
     protected static Map<String, WireMockServer> mockServers;
     
     // Network for all containers
-    private static final Network network = Network.newNetwork();
+    protected static final Network network = Network.newNetwork();
     
-    // MongoDB container
+    // MongoDB container - using GenericContainer to avoid replica set issues
     @Container
-    protected static final MongoDBContainer mongoDBContainer = new MongoDBContainer(DockerImageName.parse("mongo:7.0"))
+    protected static final GenericContainer<?> mongoDBContainer = new GenericContainer<>(DockerImageName.parse("mongo:7.0"))
             .withNetwork(network)
             .withNetworkAliases("mongodb")
-            .withExposedPorts(27017);
+            .withExposedPorts(27017)
+            .withEnv("MONGO_INITDB_DATABASE", "test_db")
+            .waitingFor(Wait.forLogMessage(".*Waiting for connections.*", 1));
     
     // Redis container  
     @Container
     protected static final GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withNetwork(network)
             .withNetworkAliases("redis")
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
     
     // Service ports - matching actual service configuration
     protected static final int AUTH_SERVICE_PORT = 3001;
@@ -60,12 +64,12 @@ public abstract class BaseE2ETest {
     protected static final int GRADE_SERVICE_PORT = 3004;
     protected static final int EUREKA_PORT = 8761;
     
-    // Base URLs - using standard ports
-    protected static final String AUTH_BASE_URL = "http://localhost:" + AUTH_SERVICE_PORT;
-    protected static final String COURSE_BASE_URL = "http://localhost:" + COURSE_SERVICE_PORT;
-    protected static final String ENROLLMENT_BASE_URL = "http://localhost:" + ENROLLMENT_SERVICE_PORT;
-    protected static final String GRADE_BASE_URL = "http://localhost:" + GRADE_SERVICE_PORT;
-    protected static final String EUREKA_URL = "http://localhost:" + EUREKA_PORT;
+    // Base URLs - will be updated based on profile
+    protected static String AUTH_BASE_URL = "http://localhost:" + AUTH_SERVICE_PORT;
+    protected static String COURSE_BASE_URL = "http://localhost:" + COURSE_SERVICE_PORT;
+    protected static String ENROLLMENT_BASE_URL = "http://localhost:" + ENROLLMENT_SERVICE_PORT;
+    protected static String GRADE_BASE_URL = "http://localhost:" + GRADE_SERVICE_PORT;
+    protected static String EUREKA_URL = "http://localhost:" + EUREKA_PORT;
     
     // Common endpoints
     protected static final String REGISTER_ENDPOINT = "/api/auth/register";
@@ -76,7 +80,10 @@ public abstract class BaseE2ETest {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         // MongoDB configuration from container
-        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+        registry.add("spring.data.mongodb.uri", () -> 
+            String.format("mongodb://%s:%d/test_db",
+                mongoDBContainer.getHost(),
+                mongoDBContainer.getMappedPort(27017)));
         
         // Redis configuration from container
         registry.add("spring.redis.host", redisContainer::getHost);
@@ -114,6 +121,14 @@ public abstract class BaseE2ETest {
         if (TEST_PROFILE == E2ETestProfile.MANUAL) {
             System.out.println("Manual mode - expecting services to be already running");
             verifyManualServices();
+        }
+        
+        // For INTEGRATION mode, note that services need to be started
+        if (TEST_PROFILE == E2ETestProfile.INTEGRATION) {
+            System.out.println("Integration mode - real services required");
+            System.out.println("Note: Tests will only work if services are running or FullServiceE2ETest is used");
+            // In integration mode, only FullServiceE2ETest should run
+            // Other tests should use mock or hybrid profiles
         }
     }
     
