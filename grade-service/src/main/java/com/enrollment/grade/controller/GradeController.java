@@ -22,25 +22,25 @@ public class GradeController {
     private final GradeService gradeService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
     public ResponseEntity<List<Grade>> getAllGrades() {
         return ResponseEntity.ok(gradeService.getAllGrades());
     }
 
     @GetMapping("/student/{studentEmail}")
-    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or (hasAuthority('student') and #studentEmail == authentication.name)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('FACULTY') or (hasRole('STUDENT') and #studentEmail == authentication.name)")
     public ResponseEntity<List<Grade>> getStudentGrades(@PathVariable String studentEmail) {
         return ResponseEntity.ok(gradeService.getStudentGrades(studentEmail));
     }
 
     @GetMapping("/course/{courseId}")
-    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
     public ResponseEntity<List<Grade>> getCourseGrades(@PathVariable String courseId) {
         return ResponseEntity.ok(gradeService.getCourseGrades(courseId));
     }
 
     @GetMapping("/student/{studentEmail}/course/{courseId}")
-    @PreAuthorize("hasAuthority('admin') or hasAuthority('faculty') or (hasAuthority('student') and #studentEmail == authentication.name)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('FACULTY') or (hasRole('STUDENT') and #studentEmail == authentication.name)")
     public ResponseEntity<Grade> getStudentCourseGrade(
             @PathVariable String studentEmail,
             @PathVariable String courseId) {
@@ -50,24 +50,24 @@ public class GradeController {
     }
 
     @GetMapping("/faculty/{facultyId}")
-    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
     public ResponseEntity<List<Grade>> getFacultyGrades(@PathVariable String facultyId) {
         return ResponseEntity.ok(gradeService.getFacultyGrades(facultyId));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
     public ResponseEntity<Grade> submitGrade(@RequestBody Grade grade, Authentication authentication) {
         // Faculty can only submit grades for their own courses
         if (authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("faculty"))) {
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_FACULTY"))) {
             grade.setFacultyId(authentication.getName());
         }
         return ResponseEntity.ok(gradeService.submitGrade(grade));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('admin', 'faculty')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
     public ResponseEntity<Grade> updateGrade(@PathVariable String id, @RequestBody Grade grade) {
         try {
             return ResponseEntity.ok(gradeService.updateGrade(id, grade));
@@ -77,7 +77,7 @@ public class GradeController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteGrade(@PathVariable String id) {
         gradeService.deleteGrade(id);
         return ResponseEntity.ok().build();

@@ -41,13 +41,13 @@ public class CourseController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
+    @PreAuthorize("hasRole('FACULTY') or hasRole('Faculty') or hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<Course> createCourse(@RequestBody Course course) {
         return ResponseEntity.ok(courseService.createCourse(course));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('faculty') or hasAuthority('Faculty') or hasAuthority('instructor') or hasAuthority('admin')")
+    @PreAuthorize("hasRole('FACULTY') or hasRole('Faculty') or hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<Course> updateCourse(@PathVariable String id, @RequestBody Course course) {
         try {
             return ResponseEntity.ok(courseService.updateCourse(id, course));
@@ -57,7 +57,7 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
         courseService.deleteCourse(id);
         return ResponseEntity.ok().build();

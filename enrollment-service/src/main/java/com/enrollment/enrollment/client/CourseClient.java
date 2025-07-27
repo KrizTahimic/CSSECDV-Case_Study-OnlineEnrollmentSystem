@@ -4,7 +4,7 @@ import com.enrollment.enrollment.model.Course;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "course-service")
+@FeignClient(name = "course-service", configuration = com.enrollment.enrollment.config.FeignConfig.class)
 public interface CourseClient {
     @GetMapping("/api/courses/{id}")
     Course getCourse(@PathVariable String id);

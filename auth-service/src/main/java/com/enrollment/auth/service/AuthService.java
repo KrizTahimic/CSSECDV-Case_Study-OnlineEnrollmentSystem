@@ -241,7 +241,7 @@ public class AuthService {
             var key = Keys.hmacShaKeyFor(keyBytes);
             
             Map<String, Object> claims = new HashMap<>();
-            claims.put("roles", List.of(user.getRole()));
+            claims.put("roles", List.of(user.getRole().toUpperCase()));
             
             return Jwts.builder()
                 .setClaims(claims)
