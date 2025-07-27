@@ -170,9 +170,20 @@ const Courses = () => {
         }
         setError('');
       } else {
-        const errorData = await response.json();
-        console.error('Failed to fetch courses:', errorData);
-        setError(errorData.message || 'Failed to fetch courses. Please try again later.');
+        let errorMessage = 'Failed to fetch courses. Please try again later.';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('Failed to fetch courses:', errorData);
+            errorMessage = errorData.message || errorMessage;
+          } else {
+            console.error('Failed to fetch courses: Non-JSON response', response.status);
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching courses:', err);
@@ -279,8 +290,17 @@ const Courses = () => {
           instructorId: ''
         });
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to create course');
+        let errorMessage = 'Failed to create course';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -301,8 +321,17 @@ const Courses = () => {
         setSuccess('Course deleted successfully');
         fetchCourses();
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to delete course');
+        let errorMessage = 'Failed to delete course';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -328,8 +357,17 @@ const Courses = () => {
         fetchCourses();
         fetchUserEnrollments();
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to enroll in course');
+        let errorMessage = 'Failed to enroll in course';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       setError('Network error. Please try again.');

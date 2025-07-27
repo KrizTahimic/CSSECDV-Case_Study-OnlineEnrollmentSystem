@@ -122,15 +122,15 @@ class GradeControllerIntegrationTest {
     @Test
     @DisplayName("Should require authentication for all grade endpoints")
     void shouldRequireAuthenticationForAllEndpoints() throws Exception {
-        // Without authentication, all requests should return 403
+        // Without authentication, all requests should return 401
         mockMvc.perform(get("/api/grades"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/grades/student/student@test.com"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/grades/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         Map<String, Object> request = new HashMap<>();
         request.put("studentEmail", "student@test.com");
@@ -140,15 +140,15 @@ class GradeControllerIntegrationTest {
         mockMvc.perform(post("/api/grades")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(put("/api/grades/grade123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(delete("/api/grades/grade123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

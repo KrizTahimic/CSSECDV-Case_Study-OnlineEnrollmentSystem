@@ -69,21 +69,21 @@ class EnrollmentSecurityTest {
     @DisplayName("Should require authentication for GET /api/enrollments")
     void shouldRequireAuthForGetEnrollments() throws Exception {
         mockMvc.perform(get("/api/enrollments"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/enrollments/student/{id}")
     void shouldRequireAuthForGetStudentEnrollments() throws Exception {
         mockMvc.perform(get("/api/enrollments/student/student123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/enrollments/course/{id}")
     void shouldRequireAuthForGetCourseEnrollments() throws Exception {
         mockMvc.perform(get("/api/enrollments/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -92,21 +92,21 @@ class EnrollmentSecurityTest {
         mockMvc.perform(post("/api/enrollments")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(enrollmentRequest)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for POST /api/enrollments/student/{studentId}/course/{courseId}")
     void shouldRequireAuthForEnrollStudent() throws Exception {
         mockMvc.perform(post("/api/enrollments/student/student123/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for DELETE /api/enrollments/student/{studentId}/course/{courseId}")
     void shouldRequireAuthForUnenrollStudent() throws Exception {
         mockMvc.perform(delete("/api/enrollments/student/student123/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -123,7 +123,7 @@ class EnrollmentSecurityTest {
 
         for (String path : protectedPaths) {
             mockMvc.perform(get(path))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isUnauthorized());
         }
     }
 

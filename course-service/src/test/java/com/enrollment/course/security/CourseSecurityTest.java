@@ -56,43 +56,45 @@ class CourseSecurityTest {
     @Test
     @DisplayName("Course endpoints require authentication")
     void endpointsRequireAuthentication() throws Exception {
-        // All course endpoints should return 403 Forbidden without authentication
+        // All course endpoints should return 401 Unauthorized without authentication
         
         // GET endpoints - require authentication
         mockMvc.perform(get("/api/courses"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Authentication required to access this resource"));
         
         mockMvc.perform(get("/api/courses/open"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         mockMvc.perform(get("/api/courses/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         mockMvc.perform(get("/api/courses/code/CS101"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // POST endpoint - requires authentication
         mockMvc.perform(post("/api/courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testCourse)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // PUT endpoint - requires authentication
         mockMvc.perform(put("/api/courses/course123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testCourse)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // DELETE endpoint - requires authentication
         mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // Enrollment endpoints - require authentication
         mockMvc.perform(post("/api/courses/course123/enroll"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         mockMvc.perform(post("/api/courses/course123/unenroll"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -105,11 +107,11 @@ class CourseSecurityTest {
         maliciousCourse.setCredits(3);
         maliciousCourse.setCapacity(100);
         
-        // Without authentication, should get 403 Forbidden
+        // Without authentication, should get 401 Unauthorized
         mockMvc.perform(post("/api/courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(maliciousCourse)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // Service should never be called
         verify(courseService, never()).createCourse(any(Course.class));
@@ -118,9 +120,9 @@ class CourseSecurityTest {
     @Test
     @DisplayName("Unauthenticated users cannot delete courses")
     void unauthenticatedCannotDeleteCourses() throws Exception {
-        // Without authentication, should get 403 Forbidden
+        // Without authentication, should get 401 Unauthorized
         mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         
         // Service should never be called
         verify(courseService, never()).deleteCourse("course123");

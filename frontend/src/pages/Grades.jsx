@@ -268,8 +268,20 @@ const Grades = () => {
           setGrades(populatedGrades);
         }
       } else {
-        console.error('Failed to fetch grades:', await response.json());
-        setError('Failed to fetch grades. Please try again later.');
+        let errorMessage = 'Failed to fetch grades. Please try again later.';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('Failed to fetch grades:', errorData);
+            errorMessage = errorData.message || errorMessage;
+          } else {
+            console.error('Failed to fetch grades: Non-JSON response', response.status);
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error fetching grades:', err);
@@ -476,9 +488,18 @@ const Grades = () => {
         
         setStudents(enrolledStudents);
       } else {
-        const errorData = await response.json();
-        console.error('Error fetching enrollments:', errorData);
-        setError(errorData.message || 'Failed to fetch enrolled students');
+        let errorMessage = 'Failed to fetch enrolled students';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('Error fetching enrollments:', errorData);
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error in fetchEnrolledStudents:', err);
@@ -796,9 +817,18 @@ const Grades = () => {
           }
         }, 5000);
       } else {
-        const errorData = await response.json();
-        console.error('Failed to submit grade:', errorData);
-        setError(errorData.message || 'Failed to submit grade. Please try again.');
+        let errorMessage = 'Failed to submit grade. Please try again.';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('Failed to submit grade:', errorData);
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error submitting grade:', err);

@@ -67,35 +67,35 @@ class GradeSecurityTest {
     @DisplayName("Should require authentication for GET /api/grades")
     void shouldRequireAuthForGetAllGrades() throws Exception {
         mockMvc.perform(get("/api/grades"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/grades/student/{email}")
     void shouldRequireAuthForGetStudentGrades() throws Exception {
         mockMvc.perform(get("/api/grades/student/student@test.com"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/grades/course/{id}")
     void shouldRequireAuthForGetCourseGrades() throws Exception {
         mockMvc.perform(get("/api/grades/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/grades/student/{email}/course/{id}")
     void shouldRequireAuthForGetStudentCourseGrade() throws Exception {
         mockMvc.perform(get("/api/grades/student/student@test.com/course/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for GET /api/grades/faculty/{id}")
     void shouldRequireAuthForGetFacultyGrades() throws Exception {
         mockMvc.perform(get("/api/grades/faculty/faculty@test.com"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -104,7 +104,7 @@ class GradeSecurityTest {
         mockMvc.perform(post("/api/grades")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(gradeRequest)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -113,14 +113,14 @@ class GradeSecurityTest {
         mockMvc.perform(put("/api/grades/grade123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(gradeRequest)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Should require authentication for DELETE /api/grades/{id}")
     void shouldRequireAuthForDeleteGrade() throws Exception {
         mockMvc.perform(delete("/api/grades/grade123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -137,7 +137,7 @@ class GradeSecurityTest {
 
         for (String path : protectedPaths) {
             mockMvc.perform(get(path))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isUnauthorized());
         }
     }
 

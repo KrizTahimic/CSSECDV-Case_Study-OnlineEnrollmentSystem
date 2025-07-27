@@ -71,28 +71,30 @@ class CourseControllerIntegrationTest {
     @Test
     @DisplayName("Should require authentication for all course endpoints")
     void shouldRequireAuthenticationForAllEndpoints() throws Exception {
-        // Without authentication, all requests should return 403
+        // Without authentication, all requests should return 401
         mockMvc.perform(get("/api/courses"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Authentication required to access this resource"));
 
         mockMvc.perform(get("/api/courses/open"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/courses/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validCourse)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(put("/api/courses/course123")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validCourse)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(delete("/api/courses/course123"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
