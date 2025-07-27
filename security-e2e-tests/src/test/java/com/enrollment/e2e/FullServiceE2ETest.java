@@ -31,6 +31,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Full Service E2E Tests with Real Containers")
 public class FullServiceE2ETest extends BaseE2ETest {
     
+    @Override
+    protected boolean shouldRunInIntegrationMode() {
+        return true;
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(FullServiceE2ETest.class);
     private static Map<String, GenericContainer<?>> serviceContainers;
     

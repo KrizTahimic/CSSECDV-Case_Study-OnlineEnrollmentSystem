@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class ServiceContainerFactory {
     
     private static final Logger log = LoggerFactory.getLogger(ServiceContainerFactory.class);
-    private static final Duration STARTUP_TIMEOUT = Duration.ofMinutes(3);
+    private static final Duration STARTUP_TIMEOUT = Duration.ofMinutes(5);
     private static final String JWT_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
     
     /**
@@ -29,10 +29,7 @@ public class ServiceContainerFactory {
      */
     public static GenericContainer<?> createEurekaContainer(Network network) {
         log.info("Creating Eureka container");
-        WaitStrategy waitStrategy = new HttpWaitStrategy()
-                .forPath("/actuator/health")
-                .forPort(8761)
-                .forStatusCode(200)
+        WaitStrategy waitStrategy = Wait.forLogMessage(".*Started.*in.*seconds.*", 1)
                 .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-eureka:latest"))
@@ -58,11 +55,8 @@ public class ServiceContainerFactory {
             redisHost, redisHost
         );
         
-        // Use health endpoint wait strategy which is more reliable
-        WaitStrategy waitStrategy = new HttpWaitStrategy()
-                .forPath("/actuator/health")
-                .forPort(3001)
-                .forStatusCode(200)
+        // Use log-based wait strategy - more reliable for Spring Boot services
+        WaitStrategy waitStrategy = Wait.forLogMessage(".*Started.*in.*seconds.*", 1)
                 .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-auth-service:latest"))
@@ -108,10 +102,7 @@ public class ServiceContainerFactory {
      */
     public static GenericContainer<?> createCourseServiceContainer(Network network, String mongoUri) {
         log.info("Creating Course Service container");
-        WaitStrategy waitStrategy = new HttpWaitStrategy()
-                .forPath("/actuator/health")
-                .forPort(3002)
-                .forStatusCode(200)
+        WaitStrategy waitStrategy = Wait.forLogMessage(".*Started.*in.*seconds.*", 1)
                 .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-course-service:latest"))
@@ -138,10 +129,7 @@ public class ServiceContainerFactory {
      */
     public static GenericContainer<?> createEnrollmentServiceContainer(Network network, String mongoUri) {
         log.info("Creating Enrollment Service container");
-        WaitStrategy waitStrategy = new HttpWaitStrategy()
-                .forPath("/actuator/health")
-                .forPort(3003)
-                .forStatusCode(200)
+        WaitStrategy waitStrategy = Wait.forLogMessage(".*Started.*in.*seconds.*", 1)
                 .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-enrollment-service:latest"))
@@ -168,10 +156,7 @@ public class ServiceContainerFactory {
      */
     public static GenericContainer<?> createGradeServiceContainer(Network network, String mongoUri) {
         log.info("Creating Grade Service container");
-        WaitStrategy waitStrategy = new HttpWaitStrategy()
-                .forPath("/actuator/health")
-                .forPort(3004)
-                .forStatusCode(200)
+        WaitStrategy waitStrategy = Wait.forLogMessage(".*Started.*in.*seconds.*", 1)
                 .withStartupTimeout(STARTUP_TIMEOUT);
         
         return new GenericContainer<>(DockerImageName.parse("onlineenrollmentsystem-p4-grade-service:latest"))

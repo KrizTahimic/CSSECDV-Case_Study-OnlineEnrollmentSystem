@@ -163,10 +163,25 @@ public abstract class BaseE2ETest {
     void setupEach() {
         RestAssured.reset();
         
-        // Verify connections before each test (except for FullServiceE2ETest which handles its own)
+        // Only verify connections for appropriate test profiles
         if (!this.getClass().equals(FullServiceE2ETest.class)) {
+            // Skip service verification for INTEGRATION mode unless explicitly marked
+            if (TEST_PROFILE == E2ETestProfile.INTEGRATION && !shouldRunInIntegrationMode()) {
+                log.info("Skipping {} - not designed for integration mode without containers", 
+                    this.getClass().getSimpleName());
+                org.junit.jupiter.api.Assumptions.assumeFalse(true, 
+                    "Test requires HYBRID or MOCK profile, not INTEGRATION");
+                return;
+            }
             verifyServiceConnections();
         }
+    }
+    
+    /**
+     * Override this method in test classes that should run in INTEGRATION mode
+     */
+    protected boolean shouldRunInIntegrationMode() {
+        return false;
     }
     
     /**
