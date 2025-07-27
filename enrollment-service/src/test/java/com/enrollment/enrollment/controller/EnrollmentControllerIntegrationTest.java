@@ -142,7 +142,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to view their own enrollments")
-    @WithMockUser(username = "student@test.com", authorities = "student")
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
     void shouldAllowStudentsToViewOwnEnrollments() throws Exception {
         List<Enrollment> enrollments = Arrays.asList(sampleEnrollment);
         when(enrollmentService.getStudentEnrollments("student@test.com")).thenReturn(enrollments);
@@ -156,7 +156,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from viewing other students' enrollments")
-    @WithMockUser(username = "student1@test.com", authorities = "student")
+    @WithMockUser(username = "student1@test.com", roles = "STUDENT")
     void shouldPreventStudentsFromViewingOthersEnrollments() throws Exception {
         mockMvc.perform(get("/api/enrollments/student/student2@test.com"))
                 .andExpect(status().isForbidden());
@@ -164,7 +164,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to view any student's enrollments")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowFacultyToViewAnyStudentEnrollments() throws Exception {
         List<Enrollment> enrollments = Arrays.asList(sampleEnrollment);
         when(enrollmentService.getStudentEnrollments("student123")).thenReturn(enrollments);
@@ -175,7 +175,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to view course enrollments")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowFacultyToViewCourseEnrollments() throws Exception {
         List<Enrollment> enrollments = Arrays.asList(sampleEnrollment);
         when(enrollmentService.getCourseEnrollments("course123")).thenReturn(enrollments);
@@ -187,7 +187,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from viewing course enrollments")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldPreventStudentsFromViewingCourseEnrollments() throws Exception {
         mockMvc.perform(get("/api/enrollments/course/course123"))
                 .andExpect(status().isForbidden());
@@ -195,7 +195,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to enroll themselves")
-    @WithMockUser(username = "student@test.com", authorities = "student")
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
     void shouldAllowStudentsToEnrollThemselves() throws Exception {
         Map<String, Object> request = new HashMap<>();
         request.put("courseId", "course123");
@@ -211,7 +211,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent faculty from using student enrollment endpoint")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldPreventFacultyFromStudentEnrollment() throws Exception {
         Map<String, Object> request = new HashMap<>();
         request.put("courseId", "course123");
@@ -238,7 +238,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow admin to manually enroll students")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldAllowAdminToManuallyEnrollStudents() throws Exception {
         when(enrollmentService.enrollStudent("student123", "course123")).thenReturn(sampleEnrollment);
 
@@ -251,7 +251,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from manually enrolling others")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldPreventStudentsFromManuallyEnrollingOthers() throws Exception {
         mockMvc.perform(post("/api/enrollments/student/student123/course/course123"))
                 .andExpect(status().isForbidden());
@@ -259,7 +259,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to drop their own courses")
-    @WithMockUser(username = "student@test.com", authorities = "student")
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
     void shouldAllowStudentsToDropOwnCourses() throws Exception {
         doNothing().when(enrollmentService).unenrollStudent("student@test.com", "course123");
 
@@ -271,7 +271,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from dropping others' courses")
-    @WithMockUser(username = "student1@test.com", authorities = "student")
+    @WithMockUser(username = "student1@test.com", roles = "STUDENT")
     void shouldPreventStudentsFromDroppingOthersCourses() throws Exception {
         mockMvc.perform(delete("/api/enrollments/student/student2@test.com/course/course123"))
                 .andExpect(status().isForbidden());
@@ -279,7 +279,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow admin to drop any enrollment")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldAllowAdminToDropAnyEnrollment() throws Exception {
         doNothing().when(enrollmentService).unenrollStudent("student123", "course123");
 
@@ -291,7 +291,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should handle enrollment service exceptions gracefully")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldHandleServiceExceptionsGracefully() throws Exception {
         when(enrollmentService.enrollStudent("student123", "course123"))
                 .thenThrow(new RuntimeException("Course is full"));
@@ -302,7 +302,7 @@ class EnrollmentControllerIntegrationTest {
 
     @Test
     @DisplayName("Should validate authorization with case-insensitive roles")
-    @WithMockUser(authorities = "Student")
+    @WithMockUser(roles = "STUDENT")
     void shouldValidateAuthorizationCaseInsensitive() throws Exception {
         Map<String, Object> request = new HashMap<>();
         request.put("courseId", "course123");

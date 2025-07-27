@@ -153,7 +153,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to view their own grades")
-    @WithMockUser(username = "student@test.com", authorities = "student")
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
     void shouldAllowStudentsToViewOwnGrades() throws Exception {
         List<Grade> grades = Arrays.asList(sampleGrade);
         when(gradeService.getStudentGrades("student@test.com")).thenReturn(grades);
@@ -168,7 +168,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from viewing other students' grades")
-    @WithMockUser(username = "student1@test.com", authorities = "student")
+    @WithMockUser(username = "student1@test.com", roles = "STUDENT")
     void shouldPreventStudentsFromViewingOthersGrades() throws Exception {
         mockMvc.perform(get("/api/grades/student/student2@test.com"))
                 .andExpect(status().isForbidden());
@@ -176,7 +176,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from viewing all grades")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldPreventStudentsFromViewingAllGrades() throws Exception {
         mockMvc.perform(get("/api/grades"))
                 .andExpect(status().isForbidden());
@@ -184,7 +184,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to view all grades")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowFacultyToViewAllGrades() throws Exception {
         List<Grade> grades = Arrays.asList(sampleGrade);
         when(gradeService.getAllGrades()).thenReturn(grades);
@@ -197,7 +197,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to view course grades")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowFacultyToViewCourseGrades() throws Exception {
         List<Grade> grades = Arrays.asList(sampleGrade);
         when(gradeService.getCourseGrades("course123")).thenReturn(grades);
@@ -211,7 +211,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to submit grades")
-    @WithMockUser(username = "faculty@test.com", authorities = "faculty")
+    @WithMockUser(username = "faculty@test.com", roles = "FACULTY")
     void shouldAllowFacultyToSubmitGrades() throws Exception {
         Grade gradeToSubmit = new Grade();
         gradeToSubmit.setStudentEmail("student@test.com");
@@ -233,7 +233,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from submitting grades")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldPreventStudentsFromSubmittingGrades() throws Exception {
         Grade gradeToSubmit = new Grade();
         gradeToSubmit.setStudentEmail("student@test.com");
@@ -249,7 +249,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow faculty to update grades")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowFacultyToUpdateGrades() throws Exception {
         Grade updatedGrade = new Grade();
         updatedGrade.setScore(95.0);
@@ -267,7 +267,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent students from updating grades")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldPreventStudentsFromUpdatingGrades() throws Exception {
         Grade updatedGrade = new Grade();
         updatedGrade.setScore(95.0);
@@ -280,7 +280,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow only admin to delete grades")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldAllowAdminToDeleteGrades() throws Exception {
         doNothing().when(gradeService).deleteGrade("grade123");
 
@@ -292,7 +292,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should prevent faculty from deleting grades")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldPreventFacultyFromDeletingGrades() throws Exception {
         mockMvc.perform(delete("/api/grades/grade123"))
                 .andExpect(status().isForbidden());
@@ -300,7 +300,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to view specific grade for their course")
-    @WithMockUser(username = "student@test.com", authorities = "student")
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
     void shouldAllowStudentsToViewSpecificGrade() throws Exception {
         when(gradeService.getStudentCourseGrade("student@test.com", "course123"))
                 .thenReturn(Optional.of(sampleGrade));
@@ -314,7 +314,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should handle grade service exceptions gracefully")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldHandleServiceExceptionsGracefully() throws Exception {
         when(gradeService.updateGrade(eq("grade123"), org.mockito.ArgumentMatchers.any(Grade.class)))
                 .thenThrow(new RuntimeException("Grade not found"));
@@ -330,7 +330,7 @@ class GradeControllerIntegrationTest {
 
     @Test
     @DisplayName("Should validate authorization with lowercase roles")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldValidateAuthorizationWithLowercaseRoles() throws Exception {
         Grade gradeToSubmit = new Grade();
         gradeToSubmit.setStudentEmail("student@test.com");

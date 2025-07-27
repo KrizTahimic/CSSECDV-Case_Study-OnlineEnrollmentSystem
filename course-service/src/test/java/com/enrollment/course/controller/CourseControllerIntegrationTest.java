@@ -99,7 +99,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow students to view courses")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldAllowStudentsToViewCourses() throws Exception {
         List<Course> courses = Arrays.asList(validCourse);
         when(courseService.getAllCourses()).thenReturn(courses);
@@ -120,7 +120,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should restrict course creation to instructors and admins")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldRestrictCourseCreationToAuthorizedRoles() throws Exception {
         // Students should not be able to create courses
         mockMvc.perform(post("/api/courses")
@@ -131,7 +131,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow instructors to create courses")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldAllowInstructorsToCreateCourses() throws Exception {
         when(courseService.createCourse(any(Course.class))).thenReturn(validCourse);
 
@@ -146,7 +146,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow admins to update any course")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldAllowAdminsToUpdateAnyCourse() throws Exception {
         when(courseService.updateCourse(eq("course123"), any(Course.class))).thenReturn(validCourse);
 
@@ -158,7 +158,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should allow admins to delete courses")
-    @WithMockUser(authorities = "admin")
+    @WithMockUser(roles = "ADMIN")
     void shouldAllowAdminsToDeleteCourses() throws Exception {
         mockMvc.perform(delete("/api/courses/course123"))
                 .andExpect(status().isOk());
@@ -168,7 +168,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should handle course not found gracefully")
-    @WithMockUser(authorities = "faculty")
+    @WithMockUser(roles = "FACULTY")
     void shouldHandleCourseNotFound() throws Exception {
         when(courseService.getCourseById("nonexistent")).thenReturn(Optional.empty());
 
@@ -186,7 +186,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should properly increment enrollment count")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldIncrementEnrollmentCount() throws Exception {
         validCourse.setEnrolled(5);
         Course enrolledCourse = new Course();
@@ -205,7 +205,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should handle enrollment capacity exceeded")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldHandleEnrollmentCapacityExceeded() throws Exception {
         when(courseService.incrementEnrollment("course123"))
                 .thenThrow(new RuntimeException("Course is full"));
@@ -216,7 +216,7 @@ class CourseControllerIntegrationTest {
 
     @Test
     @DisplayName("Should properly decrement enrollment count")
-    @WithMockUser(authorities = "student")
+    @WithMockUser(roles = "STUDENT")
     void shouldDecrementEnrollmentCount() throws Exception {
         validCourse.setEnrolled(5);
         Course unenrolledCourse = new Course();
