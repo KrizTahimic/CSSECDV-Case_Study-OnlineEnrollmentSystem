@@ -63,6 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 log.error("Error processing JWT token: {}", e.getMessage());
                 SecurityContextHolder.clearContext();
+                // Let Spring Security handle the response
             }
         }
         

@@ -80,6 +80,8 @@ The system consists of the following nodes:
 
 2. Install dependencies for each service:
    ```bash
+   mvn clean compile
+   
    # Install Service Discovery dependencies
    cd service-discovery
    mvn clean install
