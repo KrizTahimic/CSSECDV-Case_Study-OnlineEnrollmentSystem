@@ -197,11 +197,11 @@ public class ServiceContainerFactory {
             containers.put("enrollment", createEnrollmentServiceContainer(network, mongoUri));
             containers.put("grade", createGradeServiceContainer(network, mongoUri));
             
-            // Set dependencies
-            containers.get("auth").dependsOn(containers.get("eureka"));
-            containers.get("course").dependsOn(containers.get("eureka"));
-            containers.get("enrollment").dependsOn(containers.get("eureka"), containers.get("course"));
-            containers.get("grade").dependsOn(containers.get("eureka"), containers.get("course"));
+            // Dependencies are handled manually in FullServiceE2ETest for proper health checking
+            // containers.get("auth").dependsOn(containers.get("eureka"));
+            // containers.get("course").dependsOn(containers.get("eureka"));
+            // containers.get("enrollment").dependsOn(containers.get("eureka"), containers.get("course"));
+            // containers.get("grade").dependsOn(containers.get("eureka"), containers.get("course"));
             
         } catch (Exception e) {
             System.err.println("ERROR: Failed to create service containers: " + e.getMessage());
