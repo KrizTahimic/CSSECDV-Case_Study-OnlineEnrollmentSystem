@@ -10,14 +10,11 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
@@ -46,19 +43,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             username = jwtService.extractUsername(jwt);
             
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String role = jwtService.extractClaim(jwt, claims -> claims.get("role", String.class));
-                log.info("Processing JWT for user: {} with role: {}", username, role);
+                // Extract roles from token
+                java.util.List<String> roles = jwtService.extractRoles(jwt);
+                java.util.List<SimpleGrantedAuthority> authorities = roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .collect(java.util.stream.Collectors.toList());
 
-                UserDetails userDetails = User.builder()
-                        .username(username)
-                        .password("")
-                        .authorities(Collections.singletonList(new SimpleGrantedAuthority(role)))
-                        .build();
+                log.info("Processing JWT for user: {} with roles: {}", username, roles);
 
+                // Create authentication token
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
+                    username,
+                    null,
+                    authorities
                 );
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

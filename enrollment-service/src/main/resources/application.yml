@@ -15,8 +15,6 @@ spring:
       mapping: "/**"
       allowed-origins: 
         - http://localhost:3000
-        - http://192.168.188.100:3000
-        - http://127.0.0.1:3000
       allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
       allowed-headers: "*"
       allow-credentials: true
@@ -24,8 +22,8 @@ spring:
       exposed-headers: Authorization
 
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-  expiration: 86400000
+  secret: QE5jUmZValhuMnI1dTh4L0E/RChHK0tiUGRTZ1ZrWXA=
+  expiration: 3600000  # 1 hour in milliseconds
 
 eureka:
   client:

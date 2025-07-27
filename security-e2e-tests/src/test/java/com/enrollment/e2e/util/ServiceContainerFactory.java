@@ -69,8 +69,11 @@ public class ServiceContainerFactory {
                 .withNetwork(network)
                 .withNetworkAliases("auth-service")
                 .withExposedPorts(3001)
-                .withEnv("SPRING_PROFILES_ACTIVE", "default")
+                .withEnv("SPRING_PROFILES_ACTIVE", "docker")
                 .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/auth_service")
+                .withEnv("SPRING_DATA_MONGODB_HOST", "mongodb")
+                .withEnv("SPRING_DATA_MONGODB_PORT", "27017")
+                .withEnv("SPRING_DATA_MONGODB_DATABASE", "auth_service")
                 // Redis configuration with connection pooling
                 .withEnv("SPRING_REDIS_HOST", redisHost)
                 .withEnv("SPRING_DATA_REDIS_HOST", redisHost)
@@ -91,7 +94,13 @@ public class ServiceContainerFactory {
                 .withEnv("JAVA_OPTS", javaOpts)
                 .waitingFor(waitStrategy)
                 .withLabel("service", "auth-service")
-                .withLogConsumer(outputFrame -> log.debug("[AUTH] {}", outputFrame.getUtf8String()));
+                .withLogConsumer(outputFrame -> {
+                    String logLine = outputFrame.getUtf8String().trim();
+                    if (!logLine.isEmpty()) {
+                        System.out.println("[AUTH] " + logLine);
+                        log.info("[AUTH] {}", logLine);
+                    }
+                });
     }
     
     /**
@@ -111,6 +120,9 @@ public class ServiceContainerFactory {
                 .withExposedPorts(3002)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
                 .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/course_service")
+                .withEnv("SPRING_DATA_MONGODB_HOST", "mongodb")
+                .withEnv("SPRING_DATA_MONGODB_PORT", "27017")
+                .withEnv("SPRING_DATA_MONGODB_DATABASE", "course_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3002")
@@ -138,6 +150,9 @@ public class ServiceContainerFactory {
                 .withExposedPorts(3003)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
                 .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/enrollment_service")
+                .withEnv("SPRING_DATA_MONGODB_HOST", "mongodb")
+                .withEnv("SPRING_DATA_MONGODB_PORT", "27017")
+                .withEnv("SPRING_DATA_MONGODB_DATABASE", "enrollment_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3003")
@@ -165,6 +180,9 @@ public class ServiceContainerFactory {
                 .withExposedPorts(3004)
                 .withEnv("SPRING_PROFILES_ACTIVE", "docker")
                 .withEnv("SPRING_DATA_MONGODB_URI", "mongodb://mongodb:27017/grade_service")
+                .withEnv("SPRING_DATA_MONGODB_HOST", "mongodb")
+                .withEnv("SPRING_DATA_MONGODB_PORT", "27017")
+                .withEnv("SPRING_DATA_MONGODB_DATABASE", "grade_service")
                 .withEnv("EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE", "http://eureka:8761/eureka/")
                 .withEnv("JWT_SECRET", JWT_SECRET)
                 .withEnv("SERVER_PORT", "3004")

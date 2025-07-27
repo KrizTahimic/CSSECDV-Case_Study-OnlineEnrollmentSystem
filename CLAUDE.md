@@ -49,14 +49,7 @@ npm run test
 ```
 ### Test 
 ```bash
-# Quick mock tests
-./run-e2e-tests.sh --mock
-
-# Full integration tests
-./run-e2e-tests.sh --integration
-
-# Default hybrid mode
-./run-e2e-tests.sh
+mvn test
 
 cd security-e2e-tests && mvn test -De2e.test.profile=integration
 ```
@@ -84,7 +77,7 @@ Verify services are registered at: http://localhost:8761
 - Services communicate via REST APIs with JWT authentication
 - Each service has its own MongoDB database
 - Circuit breakers (Resilience4j) handle fault tolerance
-- Services are configured to use IP address 192.168.188.100 (VM setup)
+- Services are configured to use localhost for local development
 
 ### Service Responsibilities
 
@@ -122,11 +115,11 @@ Verify services are registered at: http://localhost:8761
 
 ### Key Configuration Points
 
-- All services bind to `0.0.0.0` for VM accessibility
-- Eureka configured with IP address `192.168.188.100`
+- All services bind to `0.0.0.0` for network accessibility
+- Eureka configured with localhost for service discovery
 - JWT secrets must match across services
 - MongoDB connection per service with separate databases
-- Frontend API URLs hardcoded to `192.168.188.100`
+- Frontend API URLs use localhost for all service endpoints
 
 ### Database Schema
 

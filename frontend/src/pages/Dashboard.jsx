@@ -58,9 +58,21 @@ const Dashboard = () => {
             Dashboard
           </Typography>
         </Box>
-        <Typography variant="h5" gutterBottom sx={{ color: '#2e7d32', mb: 3 }}>
+        <Typography variant="h5" gutterBottom sx={{ color: '#2e7d32', mb: 1 }}>
           Welcome, {user.firstName || 'Professor'} {user.lastName || 'X'}!
         </Typography>
+        
+        {/* Display last login information (requirement 2.1.12) */}
+        {user.lastLoginTime && (
+          <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+            <Typography variant="body2" sx={{ color: '#666', fontStyle: 'italic' }}>
+              Last login: {new Date(user.lastLoginTime).toLocaleString()}
+              {user.lastLoginIP && user.lastLoginIP !== 'Unknown' && (
+                <> from {user.lastLoginIP}</>
+              )}
+            </Typography>
+          </Box>
+        )}
         
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>

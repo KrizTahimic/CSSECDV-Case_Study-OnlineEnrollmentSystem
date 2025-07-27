@@ -90,6 +90,8 @@ public class FullServiceE2ETest extends BaseE2ETest {
             
             // Wait for Auth to be healthy (includes Redis connection)
             if (!HealthCheckUtil.waitForServiceHealth("Auth", authUrl + "/actuator/health")) {
+                log.error("Auth service failed to become healthy. Capturing diagnostics...");
+                DiagnosticUtil.diagnoseContainer("auth", authContainer);
                 throw new IllegalStateException("Auth service failed to become healthy");
             }
             

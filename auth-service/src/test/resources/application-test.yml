@@ -37,7 +37,7 @@ eureka:
 
 # JWT configuration for tests
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  secret: QE5jUmZValhuMnI1dTh4L0E/RChHK0tiUGRTZ1ZrWXA=
   expiration: 3600000  # 1 hour
 
 # Logging configuration for tests

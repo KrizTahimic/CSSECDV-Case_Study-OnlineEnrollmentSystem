@@ -1,0 +1,53 @@
+spring:
+  data:
+    mongodb:
+      host: ${SPRING_DATA_MONGODB_HOST:mongodb}
+      port: ${SPRING_DATA_MONGODB_PORT:27017}
+      database: ${SPRING_DATA_MONGODB_DATABASE:auth_service}
+  redis:
+    host: ${SPRING_REDIS_HOST:redis}
+    port: ${SPRING_REDIS_PORT:6379}
+    timeout: ${SPRING_REDIS_TIMEOUT:2000ms}
+    lettuce:
+      pool:
+        max-active: ${SPRING_REDIS_LETTUCE_POOL_MAX_ACTIVE:8}
+        max-idle: ${SPRING_REDIS_LETTUCE_POOL_MAX_IDLE:8}
+        min-idle: ${SPRING_REDIS_LETTUCE_POOL_MIN_IDLE:0}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 30
+  instance:
+    prefer-ip-address: true
+    ip-address: ${spring.cloud.client.ip-address:localhost}
+    health-check-url-path: /actuator/health
+    status-page-url-path: /actuator/info
+
+# Override any Redis URL settings to ensure host/port are used
+spring.data.redis:
+  host: ${SPRING_REDIS_HOST:redis}
+  port: ${SPRING_REDIS_PORT:6379}
+
+# JWT configuration
+jwt:
+  secret: ${JWT_SECRET:QE5jUmZValhuMnI1dTh4L0E/RChHK0tiUGRTZ1ZrWXA=}
+  expiration: ${JWT_EXPIRATION:3600000}  # 1 hour in milliseconds
+
+# Health check configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  health:
+    redis:
+      enabled: false  # Temporarily disable Redis health check
+    mongo:
+      enabled: true

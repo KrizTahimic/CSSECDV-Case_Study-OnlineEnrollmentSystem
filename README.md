@@ -200,6 +200,25 @@ Each service uses its own MongoDB database:
 - CORS configuration
 - Input validation
 
+### ⚠️ Important: JWT Token Configuration
+
+**CRITICAL**: All services must use the same JWT secret for authentication to work properly.
+
+**Configuration Files to Keep Synchronized:**
+- `auth-service/src/main/resources/application.yml` 
+- `auth-service/src/main/resources/application.properties`
+- `course-service/src/main/resources/application.yml`
+- `enrollment-service/src/main/resources/application.yml`
+- `grade-service/src/main/resources/application.yml`
+- All test configuration files (`application-test.yml`)
+
+**When changing JWT secrets:**
+1. Update the `jwt.secret` value in ALL configuration files listed above
+2. Rebuild all services: `mvn clean compile` in each service directory
+3. Restart all services in the correct order
+
+**Common Issue:** If you get "JWT signature does not match" errors, it means services are using different JWT secrets. Check both `.yml` and `.properties` files in all services.
+
 ## Troubleshooting
 
 1. If a service fails to start:

@@ -12,7 +12,7 @@ spring:
       enabled: false
 
 jwt:
-  secret: testsecret123456789012345678901234567890
+  secret: QE5jUmZValhuMnI1dTh4L0E/RChHK0tiUGRTZ1ZrWXA=
 
 eureka:
   client:

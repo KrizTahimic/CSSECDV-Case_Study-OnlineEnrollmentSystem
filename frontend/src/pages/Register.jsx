@@ -80,14 +80,18 @@ const Register = () => {
           window.dispatchEvent(new Event('authStateChanged'));
           navigate('/dashboard');
         } else {
-          // If login fails, redirect to login page
-          navigate('/login');
+          // If login fails, show the error message from backend
+          setError(loginData.message || 'Login failed after registration');
         }
       } else {
         setError(registerData.message || 'Registration failed');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (err.message && err.message.includes('fetch')) {
+        setError('Network error. Please check if the service is running.');
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     }
   };
 
